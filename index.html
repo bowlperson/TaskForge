@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QuestRPG — Gamified Productivity</title>
+  <meta name="description" content="Turn your day into an RPG. Create quests, earn XP, and level up SPECIAL + Skills." />
+  <!-- Tailwind via CDN for quick prototyping -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%230ea5e9' d='M128 16 32 64v80c0 23 9 45 25 61l71 71 71-71c16-16 25-38 25-61V64z'/%3E%3Ctext x='50%' y='55%' text-anchor='middle' font-size='120' fill='white' font-family='monospace'%3EQ%3C/text%3E%3C/svg%3E" />
+  <style>
+    /* Minimal scrollbar polish */
+    * { scrollbar-width: thin; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="max-w-6xl mx-auto p-4 md:p-8">
+    <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <h1 class="text-3xl font-bold">QuestRPG <span class="text-sky-400">MVP</span></h1>
+      <div class="flex gap-2">
+        <button id="btn-export" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Export Save</button>
+        <label class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 cursor-pointer">Import Save
+          <input id="file-import" type="file" accept="application/json" class="hidden" />
+        </label>
+        <button id="btn-reset" class="px-3 py-2 rounded-lg bg-rose-700 hover:bg-rose-600">Hard Reset</button>
+      </div>
+    </header>
+
+    <section class="mt-6 grid md:grid-cols-3 gap-6">
+      <!-- Player Card -->
+      <div class="md:col-span-1">
+        <div class="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+          <h2 class="text-xl font-semibold mb-3 flex items-center justify-between">
+            Player
+            <button id="btn-notify" class="text-xs px-2 py-1 rounded bg-sky-700 hover:bg-sky-600">Enable Notifications</button>
+          </h2>
+          <div class="space-y-2">
+            <label class="block text-sm opacity-80">Name</label>
+            <input id="player-name" type="text" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Bowl" />
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <div class="rounded bg-slate-800 p-3">
+                <div class="text-3xl font-bold" id="level">1</div>
+                <div class="text-xs opacity-70">Level</div>
+              </div>
+              <div class="rounded bg-slate-800 p-3">
+                <div class="text-3xl font-bold" id="xp">0</div>
+                <div class="text-xs opacity-70">XP</div>
+              </div>
+            </div>
+            <div class="mt-3 text-xs opacity-90">Next level at <span id="next-xp">100</span> XP</div>
+            <div class="mt-4">
+              <h3 class="font-semibold mb-2">SPECIAL</h3>
+              <div id="special-list" class="grid grid-cols-2 gap-2"></div>
+              <div class="text-xs opacity-75 mt-2">Click +/- to adjust. Awarded points come from quests.</div>
+            </div>
+            <div class="mt-4">
+              <h3 class="font-semibold mb-2">Skills</h3>
+              <div id="skills-list" class="space-y-2 max-h-56 overflow-auto pr-1"></div>
+              <form id="skill-form" class="flex gap-2 mt-2">
+                <input id="skill-name" type="text" class="flex-1 px-3 py-2 rounded bg-slate-800" placeholder="e.g., Science" />
+                <button class="px-3 py-2 rounded bg-sky-700 hover:bg-sky-600">Add</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quests -->
+      <div class="md:col-span-2">
+        <div class="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
+          <h2 class="text-xl font-semibold mb-3">Quests</h2>
+          <form id="quest-form" class="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
+            <div class="md:col-span-2">
+              <label class="text-sm opacity-80">Title</label>
+              <input id="q-title" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Gym: Push Day" />
+            </div>
+            <div>
+              <label class="text-sm opacity-80">XP</label>
+              <input id="q-xp" type="number" min="0" step="5" class="w-full px-3 py-2 rounded bg-slate-800" value="25" />
+            </div>
+            <div>
+              <label class="text-sm opacity-80">SPECIAL Stat</label>
+              <select id="q-stat" class="w-full px-3 py-2 rounded bg-slate-800"></select>
+            </div>
+            <div>
+              <label class="text-sm opacity-80">Skill (optional)</label>
+              <input id="q-skill" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Fitness" />
+            </div>
+            <div>
+              <label class="text-sm opacity-80">Remind</label>
+              <input id="q-due" type="datetime-local" class="w-full px-3 py-2 rounded bg-slate-800" />
+            </div>
+            <div class="md:col-span-6">
+              <label class="text-sm opacity-80">Notes</label>
+              <textarea id="q-notes" class="w-full px-3 py-2 rounded bg-slate-800" rows="2" placeholder="What does success look like?" ></textarea>
+            </div>
+            <div class="md:col-span-6 flex gap-2">
+              <button class="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600">Add Quest</button>
+              <button type="button" id="btn-clear-done" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700">Clear Completed</button>
+              <button type="button" id="btn-demo" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700">Add Demo Quests</button>
+            </div>
+          </form>
+
+          <div id="quest-list" class="mt-4 grid gap-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-xs opacity-60">
+      <p>All data is stored locally in your browser (localStorage). Export JSON for backup or sync.</p>
+    </footer>
+  </div>
+
+  <template id="tpl-quest">
+    <div class="rounded-xl bg-slate-800 p-3 ring-1 ring-white/10">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1">
+          <div class="flex items-center gap-2">
+            <input type="checkbox" class="q-done size-5 accent-emerald-500" />
+            <h3 class="q-title font-semibold"></h3>
+            <span class="ml-2 text-xs px-2 py-0.5 rounded bg-sky-700/50">+<span class="q-xp"></span> XP</span>
+            <span class="ml-1 text-xs px-2 py-0.5 rounded bg-fuchsia-700/40 q-tag-stat"></span>
+            <span class="ml-1 text-xs px-2 py-0.5 rounded bg-amber-700/40 q-tag-skill hidden"></span>
+          </div>
+          <p class="q-notes text-sm opacity-85 mt-1"></p>
+          <div class="q-remind text-xs opacity-70 mt-1"></div>
+        </div>
+        <div class="flex gap-2">
+          <button class="q-edit px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-sm">Edit</button>
+          <button class="q-del px-3 py-1 rounded bg-rose-700 hover:bg-rose-600 text-sm">Delete</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    // --- Simple data layer ---
+    const DEFAULT_SAVE = {
+      player: {
+        name: "Bowl",
+        level: 1,
+        xp: 0,
+        special: { S: 5, P: 5, E: 5, C: 5, I: 5, A: 5, L: 5 },
+        skills: { }, // e.g., { Science: 10, Fitness: 8 }
+      },
+      quests: []
+    };
+
+    const el = (id) => document.getElementById(id);
+    const $ = (sel, root=document) => root.querySelector(sel);
+
+    function load(){
+      try{
+        return JSON.parse(localStorage.getItem('questrpg_save')) || structuredClone(DEFAULT_SAVE);
+      }catch(e){
+        return structuredClone(DEFAULT_SAVE);
+      }
+    }
+    function save(state){
+      localStorage.setItem('questrpg_save', JSON.stringify(state));
+    }
+
+    const state = load();
+
+    // --- Level curve: next = base * level ---
+    function nextLevelXP(level){ return 100 * level; }
+
+    // --- Notifications ---
+    async function ensureNotifyPermission(){
+      if(!('Notification' in window)) { alert('Notifications not supported in this browser.'); return false; }
+      let perm = Notification.permission;
+      if(perm === 'default') perm = await Notification.requestPermission();
+      return perm === 'granted';
+    }
+    function notify(title, body){
+      try{ new Notification(title, { body }); } catch(e){ /* ignored */ }
+    }
+
+    // --- UI rendering ---
+    function renderPlayer(){
+      el('player-name').value = state.player.name;
+      el('level').textContent = state.player.level;
+      el('xp').textContent = state.player.xp;
+      el('next-xp').textContent = nextLevelXP(state.player.level);
+
+      const wrap = el('special-list');
+      wrap.innerHTML = '';
+      const labels = {S:'Strength',P:'Perception',E:'Endurance',C:'Charisma',I:'Intelligence',A:'Agility',L:'Luck'};
+      for(const key of Object.keys(state.player.special)){
+        const val = state.player.special[key];
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 rounded bg-slate-800 p-2';
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-sky-400 font-semibold">${key}</span>
+            <span class="text-sm opacity-80">${labels[key]}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="px-2 py-1 bg-slate-700 rounded" data-k="${key}" data-delta="-1">-</button>
+            <span class="w-8 text-center">${val}</span>
+            <button class="px-2 py-1 bg-slate-700 rounded" data-k="${key}" data-delta="1">+</button>
+          </div>`;
+        const [btnMinus, , btnPlus] = row.querySelectorAll('button');
+        btnMinus.addEventListener('click', ()=>{ state.player.special[key] = Math.max(1, state.player.special[key]-1); save(state); renderPlayer(); });
+        btnPlus.addEventListener('click', ()=>{ state.player.special[key] = state.player.special[key]+1; save(state); renderPlayer(); });
+        wrap.appendChild(row);
+      }
+
+      // Populate SPECIAL select
+      const sel = el('q-stat');
+      sel.innerHTML = '';
+      for(const k of Object.keys(labels)){
+        const o = document.createElement('option'); o.value = k; o.textContent = `${k} — ${labels[k]}`; sel.appendChild(o);
+      }
+
+      // Skills list
+      const sl = el('skills-list');
+      sl.innerHTML = '';
+      const entries = Object.entries(state.player.skills);
+      if(entries.length === 0){
+        sl.innerHTML = '<div class="text-sm opacity-70">No skills yet. Add one below.</div>';
+      } else {
+        for(const [name, val] of entries){
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 rounded bg-slate-800 p-2';
+          row.innerHTML = `
+            <span class="font-medium">${name}</span>
+            <div class="flex items-center gap-1">
+              <button class="px-2 py-1 bg-slate-700 rounded" data-name="${name}" data-delta="-1">-</button>
+              <span class="w-10 text-center">${val}</span>
+              <button class="px-2 py-1 bg-slate-700 rounded" data-name="${name}" data-delta="1">+</button>
+              <button class="ml-2 px-2 py-1 bg-rose-700 rounded" data-name="${name}" data-del="1">×</button>
+            </div>`;
+          const [btnMinus, , btnPlus, btnDel] = row.querySelectorAll('button');
+          btnMinus.addEventListener('click', ()=>{ state.player.skills[name] = Math.max(0, state.player.skills[name]-1); save(state); renderPlayer(); });
+          btnPlus.addEventListener('click', ()=>{ state.player.skills[name] = state.player.skills[name]+1; save(state); renderPlayer(); });
+          btnDel.addEventListener('click', ()=>{ delete state.player.skills[name]; save(state); renderPlayer(); });
+          sl.appendChild(row);
+        }
+      }
+    }
+
+    function renderQuests(){
+      const list = el('quest-list'); list.innerHTML = '';
+      const tpl = el('tpl-quest');
+      if(state.quests.length === 0){
+        list.innerHTML = '<div class="text-sm opacity-70">No quests yet. Add one above. ✅</div>';
+        return;
+      }
+      for(const q of state.quests){
+        const node = tpl.content.cloneNode(true);
+        $('.q-title', node).textContent = q.title;
+        $('.q-xp', node).textContent = q.xp;
+        $('.q-notes', node).textContent = q.notes || '';
+        const statTag = $('.q-tag-stat', node);
+        statTag.textContent = `${q.stat}`;
+        const skillTag = $('.q-tag-skill', node);
+        if(q.skill){ skillTag.textContent = q.skill; skillTag.classList.remove('hidden'); }
+        const box = $('.q-done', node);
+        box.checked = !!q.done;
+        if(q.due){
+          const when = new Date(q.due);
+          $('.q-remind', node).textContent = `Reminder: ${when.toLocaleString()}`;
+        }
+        const wrapper = node.querySelector(':scope > .rounded-xl');
+        if(q.done) wrapper.classList.add('opacity-60');
+
+        box.addEventListener('change', ()=>{
+          q.done = box.checked;
+          if(q.done){
+            award(q);
+            notify('Quest Complete ✨', `${q.title} (+${q.xp} XP)`);
+          }
+          save(state); renderPlayer(); renderQuests();
+        });
+        $('.q-del', node).addEventListener('click', ()=>{
+          state.quests = state.quests.filter(x=>x.id!==q.id); save(state); renderQuests();
+        });
+        $('.q-edit', node).addEventListener('click', ()=>{
+          // prefill form
+          el('q-title').value = q.title;
+          el('q-xp').value = q.xp;
+          el('q-stat').value = q.stat;
+          el('q-skill').value = q.skill || '';
+          el('q-notes').value = q.notes || '';
+          el('q-due').value = q.due ? new Date(q.due).toISOString().slice(0,16) : '';
+          // replace on submit
+          el('quest-form').dataset.editing = q.id;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        list.appendChild(node);
+      }
+    }
+
+    function award(q){
+      // XP & Leveling
+      state.player.xp += Number(q.xp)||0;
+      // Level up loop
+      while(state.player.xp >= nextLevelXP(state.player.level)){
+        state.player.xp -= nextLevelXP(state.player.level);
+        state.player.level += 1;
+        notify('Level Up! 🚀', `You are now Level ${state.player.level}`);
+      }
+      // SPECIAL increase
+      if(q.stat && state.player.special[q.stat] != null){
+        state.player.special[q.stat] += 1;
+      }
+      // Skill increase
+      if(q.skill){
+        state.player.skills[q.skill] = (state.player.skills[q.skill]||0) + Math.max(1, Math.floor(q.xp/25));
+      }
+    }
+
+    // --- Event wiring ---
+    el('player-name').addEventListener('change', e=>{ state.player.name = e.target.value || 'Player'; save(state); });
+
+    el('skill-form').addEventListener('submit', e=>{
+      e.preventDefault();
+      const name = el('skill-name').value.trim(); if(!name) return;
+      state.player.skills[name] = state.player.skills[name] || 0;
+      save(state); el('skill-name').value=''; renderPlayer();
+    });
+
+    el('quest-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const editing = e.currentTarget.dataset.editing;
+      const q = {
+        id: editing || crypto.randomUUID(),
+        title: el('q-title').value.trim() || 'Untitled Quest',
+        xp: Number(el('q-xp').value)||0,
+        stat: el('q-stat').value,
+        skill: el('q-skill').value.trim() || '',
+        notes: el('q-notes').value.trim(),
+        due: el('q-due').value ? new Date(el('q-due').value).toISOString() : '',
+        done: false,
+      };
+      if(editing){
+        const idx = state.quests.findIndex(x=>x.id===editing);
+        if(idx!==-1) state.quests[idx] = q;
+        delete e.currentTarget.dataset.editing;
+      } else {
+        state.quests.push(q);
+      }
+      save(state);
+      // lightweight scheduling (tab must be open)
+      if(q.due){
+        const t = new Date(q.due).getTime() - Date.now();
+        if(t > 0 && Notification.permission === 'granted'){
+          setTimeout(()=> notify('Quest Reminder ⏰', q.title), t);
+        }
+      }
+      // clear form
+      el('q-title').value = '';
+      el('q-xp').value = 25;
+      el('q-skill').value = '';
+      el('q-notes').value = '';
+      el('q-due').value = '';
+      renderQuests();
+    });
+
+    el('btn-clear-done').addEventListener('click', ()=>{
+      state.quests = state.quests.filter(q=>!q.done); save(state); renderQuests();
+    });
+
+    el('btn-demo').addEventListener('click', ()=>{
+      const demo = [
+        {title:'Morning Routine', xp:15, stat:'A', skill:'Discipline', notes:'Water + Vitamins', due:''},
+        {title:'Gym — Push Day', xp:35, stat:'S', skill:'Fitness', notes:'Bench 3x8', due:''},
+        {title:'Study JS (30m)', xp:25, stat:'I', skill:'JavaScript', notes:'Array methods', due:''},
+      ].map(d=>({id:crypto.randomUUID(), done:false, ...d}));
+      state.quests.push(...demo); save(state); renderQuests();
+    });
+
+    el('btn-export').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'questrpg-save.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    el('file-import').addEventListener('change', async (e)=>{
+      const file = e.target.files?.[0]; if(!file) return;
+      const text = await file.text();
+      try{
+        const data = JSON.parse(text);
+        if(!data.player || !data.quests) throw new Error('Invalid save file');
+        localStorage.setItem('questrpg_save', text);
+        Object.assign(state, data);
+        renderPlayer(); renderQuests();
+      }catch(err){
+        alert('Import failed: ' + err.message);
+      }
+    });
+
+    el('btn-reset').addEventListener('click', ()=>{
+      if(confirm('This will delete your local save. Continue?')){
+        localStorage.removeItem('questrpg_save');
+        Object.assign(state, structuredClone(DEFAULT_SAVE));
+        renderPlayer(); renderQuests();
+      }
+    });
+
+    el('btn-notify').addEventListener('click', async ()=>{
+      const ok = await ensureNotifyPermission();
+      if(ok) notify('Notifications enabled', 'I will remind you when the page is open.');
+    });
+
+    // Initial render
+    renderPlayer();
+    renderQuests();
+  </script>
+</body>
+</html>
