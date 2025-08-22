@@ -141,12 +141,12 @@ const DEFAULT_SAVE = {
     level: 1,
     xp: 0,
     mainstats: {
-      Strength: 10,
-      Dexterity: 10,
-      Constitution: 10,
-      Intelligence: 10,
-      Wisdom: 10,
-      Charisma: 10
+      Strength: 0,
+      Dexterity: 0,
+      Constitution: 0,
+      Intelligence: 0,
+      Wisdom: 0,
+      Charisma: 0
     },
     skills: {}
   },
@@ -181,9 +181,11 @@ function completeQuest(id) {
   if (idx === -1) return;
   const q = state.quests[idx];
   addXP(q.xp);
+  let st = 0;
   if (q.stat) {
+    st = Math.floor(q.xp / 300);
     state.player.mainstats[q.stat] =
-      (state.player.mainstats[q.stat] || 0) + q.xp;
+      (state.player.mainstats[q.stat] || 0) + st;
   }
   let sp = 0;
   if (q.skill) {
@@ -192,7 +194,7 @@ function completeQuest(id) {
       (state.player.skills[q.skill] || 0) + sp;
   }
   state.quests.splice(idx, 1);
-  state.log.push({ ...q, skillPoints: sp, completedAt: Date.now() });
+  state.log.push({ ...q, statPoints: st, skillPoints: sp, completedAt: Date.now() });
   save();
   render();
 }
@@ -206,7 +208,10 @@ function undoQuest(id) {
     state.player.xp += nextLevelXP();
   }
   if (q.stat) {
-    state.player.mainstats[q.stat] -= q.xp;
+    state.player.mainstats[q.stat] = Math.max(
+      0,
+      (state.player.mainstats[q.stat] || 0) - (q.statPoints || 0)
+    );
   }
   if (q.skill) {
     state.player.skills[q.skill] -= q.skillPoints;
@@ -258,7 +263,8 @@ function render() {
     });
   }
   const statsList = el("stats-list");
-  statsList.innerHTML = '<canvas id="stats-chart"></canvas>';
+  statsList.innerHTML =
+    '<canvas id="stats-chart"></canvas><table id="stats-table" class="mt-4 w-full text-sm"></table>';
   const ctx = el("stats-chart");
   if (statsChart) statsChart.destroy();
   statsChart = new Chart(ctx, {
@@ -267,15 +273,21 @@ function render() {
       labels: Object.keys(state.player.mainstats),
       datasets: [
         {
-          label: "Stats",
           data: Object.values(state.player.mainstats),
           backgroundColor: "rgba(14,165,233,0.2)",
           borderColor: "#0ea5e9"
         }
       ]
     },
-    options: { scales: { r: { beginAtZero: true } } }
+    options: {
+      scales: { r: { beginAtZero: true, ticks: { stepSize: 1, backdropColor: 'transparent' } } },
+      plugins: { legend: { display: false } }
+    }
   });
+  const statsTable = el("stats-table");
+  statsTable.innerHTML = Object.entries(state.player.mainstats)
+    .map(([n, v]) => `<tr><td class="py-1">${n}</td><td class="py-1 text-right">${v}</td></tr>`)
+    .join("");
   const skillsList = el("skills-list");
   skillsList.innerHTML = "";
   const sk = state.player.skills;
