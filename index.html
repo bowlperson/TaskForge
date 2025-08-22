@@ -6,6 +6,7 @@
   <title>TaskForge — Gamified Productivity</title>
   <meta name="description" content="Turn your day into an RPG. Create quests, earn XP, and level up Main Stats + Skills." />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%230ea5e9'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='48' fill='white' font-family='monospace'%3ETF%3C/text%3E%3C/svg%3E" />
   <style>* { scrollbar-width: thin; }</style>
 </head>
@@ -44,11 +45,12 @@
             </div>
             <div class="mt-3 text-xs opacity-90">Next level at <span id="next-xp">100</span> XP</div>
 
-            <div class="mt-4 space-y-2">
-              <button id="btn-open-quests" class="w-full text-left font-semibold hover:text-sky-300">Quests</button>
-              <button id="btn-open-stats" class="w-full text-left font-semibold hover:text-sky-300">Main Stats</button>
-              <button id="btn-open-skills" class="w-full text-left font-semibold hover:text-sky-300">Skills</button>
-            </div>
+              <div class="mt-4 space-y-2">
+                <button id="btn-open-quests" class="w-full text-left font-semibold hover:text-sky-300">Quests</button>
+                <button id="btn-open-stats" class="w-full text-left font-semibold hover:text-sky-300">Main Stats</button>
+                <button id="btn-open-skills" class="w-full text-left font-semibold hover:text-sky-300">Skills</button>
+                <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300">Audit Log</button>
+              </div>
           </div>
         </div>
       </div>
@@ -73,10 +75,11 @@
                 <label class="text-sm opacity-80">Main Stat</label>
                 <select id="q-stat" class="w-full px-3 py-2 rounded bg-slate-800"></select>
               </div>
-              <div>
-                <label class="text-sm opacity-80">Skill (optional)</label>
-                <select id="q-skill" class="w-full px-3 py-2 rounded bg-slate-800"></select>
-              </div>
+                <div>
+                  <label class="text-sm opacity-80">Skill (optional)</label>
+                  <input id="q-skill" list="skill-list" class="w-full px-3 py-2 rounded bg-slate-800" />
+                  <datalist id="skill-list"></datalist>
+                </div>
               <div>
                 <label class="text-sm opacity-80">Remind</label>
                 <input id="q-due" type="datetime-local" class="w-full px-3 py-2 rounded bg-slate-800" />
@@ -93,61 +96,253 @@
             <div id="quest-list" class="mt-4 grid gap-3"></div>
           </div>
 
-          <div id="view-stats" class="hidden"><h2 class="text-xl font-semibold mb-3">Main Stats</h2><div id="stats-list"></div></div>
-          <div id="view-skills" class="hidden"><h2 class="text-xl font-semibold mb-3">Skills</h2><div id="skills-list"></div></div>
+            <div id="view-stats" class="hidden"><h2 class="text-xl font-semibold mb-3">Main Stats</h2><div id="stats-list"></div></div>
+            <div id="view-skills" class="hidden"><h2 class="text-xl font-semibold mb-3">Skills</h2><div id="skills-list"></div></div>
+            <div id="view-log" class="hidden"><h2 class="text-xl font-semibold mb-3">Audit Log</h2><div id="log-list"></div></div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
   </div>
 
   <template id="tpl-quest">
     <div class="rounded-xl bg-slate-800 p-3 ring-1 ring-white/10">
       <div class="flex items-start justify-between gap-3">
         <div class="flex-1">
-          <div class="flex items-center gap-2">
-            <input type="checkbox" class="q-done size-5 accent-emerald-500" />
-            <h3 class="q-title font-semibold"></h3>
-            <span class="ml-2 text-xs px-2 py-0.5 rounded bg-sky-700/50">+<span class="q-xp"></span> XP</span>
-            <span class="ml-1 text-xs px-2 py-0.5 rounded bg-fuchsia-700/40 q-tag-stat"></span>
-            <span class="ml-1 text-xs px-2 py-0.5 rounded bg-amber-700/40 q-tag-skill hidden"></span>
-          </div>
+            <div class="flex items-center gap-2">
+              <button class="q-complete text-xs px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600">Completed</button>
+              <h3 class="q-title font-semibold"></h3>
+              <span class="ml-2 text-xs px-2 py-0.5 rounded bg-sky-700/50">+<span class="q-xp"></span> XP</span>
+              <span class="ml-1 text-xs px-2 py-0.5 rounded bg-fuchsia-700/40 q-tag-stat"></span>
+              <span class="ml-1 text-xs px-2 py-0.5 rounded bg-amber-700/40 q-tag-skill hidden"></span>
+            </div>
           <p class="q-notes text-sm opacity-85 mt-1"></p>
         </div>
       </div>
     </div>
   </template>
 
+  <template id="tpl-log">
+    <div class="rounded-xl bg-slate-800 p-3 ring-1 ring-white/10">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1">
+          <h3 class="l-title font-semibold"></h3>
+          <div class="text-xs opacity-70 mt-1">+<span class="l-xp"></span> XP <span class="l-stat"></span> <span class="l-skill"></span></div>
+          <p class="l-notes text-sm opacity-85 mt-1"></p>
+        </div>
+        <button class="l-undo text-xs px-2 py-1 rounded bg-rose-700 hover:bg-rose-600">Undo</button>
+      </div>
+    </div>
+  </template>
+
 <script>
-const DEFAULT_SAVE = { player:{name:"Bowl",level:1,xp:0,mainstats:{Strength:10,Dexterity:10,Constitution:10,Intelligence:10,Wisdom:10,Charisma:10},skills:{}}, quests:[] };
-const el=id=>document.getElementById(id);
-const state=JSON.parse(localStorage.getItem('taskforge_save')||'null')||structuredClone(DEFAULT_SAVE);
-function save(){localStorage.setItem('taskforge_save',JSON.stringify(state));}
-function show(view){['view-quests','view-stats','view-skills'].forEach(id=>el(id).classList.toggle('hidden',id!==view));}
-function render(){
-  // Populate selects
-  el('q-stat').innerHTML='<option value="">None</option>'+Object.keys(state.player.mainstats).map(n=>`<option value="${n}">${n}</option>`).join('');
-  el('q-skill').innerHTML='<option value="">None</option>'+Object.keys(state.player.skills).map(n=>`<option value="${n}">${n}</option>`).join('');
-  // Quest list
-  const list=el('quest-list'); list.innerHTML='';
-  if(state.quests.length===0){list.innerHTML='<div class="text-sm opacity-70">No quests yet.</div>';return;}
-  state.quests.forEach(q=>{
-    const node=el('tpl-quest').content.cloneNode(true);
-    node.querySelector('.q-title').textContent=q.title;
-    node.querySelector('.q-xp').textContent=q.xp;
-    node.querySelector('.q-tag-stat').textContent=q.stat;
-    if(q.skill){const s=node.querySelector('.q-tag-skill');s.textContent=q.skill;s.classList.remove('hidden');}
-    list.appendChild(node);
+const DEFAULT_SAVE = {
+  player: {
+    name: "Bowl",
+    level: 1,
+    xp: 0,
+    mainstats: {
+      Strength: 10,
+      Dexterity: 10,
+      Constitution: 10,
+      Intelligence: 10,
+      Wisdom: 10,
+      Charisma: 10
+    },
+    skills: {}
+  },
+  quests: [],
+  log: []
+};
+const el = id => document.getElementById(id);
+const state =
+  JSON.parse(localStorage.getItem("taskforge_save") || "null") ||
+  structuredClone(DEFAULT_SAVE);
+let statsChart = null;
+function save() {
+  localStorage.setItem("taskforge_save", JSON.stringify(state));
+}
+function show(view) {
+  ["view-quests", "view-stats", "view-skills", "view-log"].forEach(id =>
+    el(id).classList.toggle("hidden", id !== view)
+  );
+}
+function nextLevelXP() {
+  return state.player.level * 100;
+}
+function addXP(amount) {
+  state.player.xp += amount;
+  while (state.player.xp >= nextLevelXP()) {
+    state.player.xp -= nextLevelXP();
+    state.player.level++;
+  }
+}
+function completeQuest(id) {
+  const idx = state.quests.findIndex(q => q.id === id);
+  if (idx === -1) return;
+  const q = state.quests[idx];
+  addXP(q.xp);
+  if (q.stat) {
+    state.player.mainstats[q.stat] =
+      (state.player.mainstats[q.stat] || 0) + q.xp;
+  }
+  let sp = 0;
+  if (q.skill) {
+    sp = Math.floor(q.xp / 30);
+    state.player.skills[q.skill] =
+      (state.player.skills[q.skill] || 0) + sp;
+  }
+  state.quests.splice(idx, 1);
+  state.log.push({ ...q, skillPoints: sp, completedAt: Date.now() });
+  save();
+  render();
+}
+function undoQuest(id) {
+  const idx = state.log.findIndex(l => l.id === id);
+  if (idx === -1) return;
+  const q = state.log[idx];
+  state.player.xp -= q.xp;
+  while (state.player.xp < 0 && state.player.level > 1) {
+    state.player.level--;
+    state.player.xp += nextLevelXP();
+  }
+  if (q.stat) {
+    state.player.mainstats[q.stat] -= q.xp;
+  }
+  if (q.skill) {
+    state.player.skills[q.skill] -= q.skillPoints;
+    if (state.player.skills[q.skill] <= 0) delete state.player.skills[q.skill];
+  }
+  state.log.splice(idx, 1);
+  state.quests.push({
+    id: q.id,
+    title: q.title,
+    xp: q.xp,
+    stat: q.stat,
+    skill: q.skill,
+    notes: q.notes
   });
+  save();
+  render();
+}
+function render() {
+  el("player-name").value = state.player.name;
+  el("level").textContent = state.player.level;
+  el("xp").textContent = state.player.xp;
+  el("next-xp").textContent = nextLevelXP();
+  el("q-stat").innerHTML =
+    '<option value="">None</option>' +
+    Object.keys(state.player.mainstats)
+      .map(n => `<option value="${n}">${n}</option>`)
+      .join("");
+  el("skill-list").innerHTML = Object.keys(state.player.skills)
+    .map(n => `<option value="${n}">`)
+    .join("");
+  const qlist = el("quest-list");
+  qlist.innerHTML = "";
+  if (state.quests.length === 0) {
+    qlist.innerHTML = '<div class="text-sm opacity-70">No quests yet.</div>';
+  } else {
+    state.quests.forEach(q => {
+      const node = el("tpl-quest").content.cloneNode(true);
+      node.querySelector(".q-title").textContent = q.title;
+      node.querySelector(".q-xp").textContent = q.xp;
+      node.querySelector(".q-tag-stat").textContent = q.stat;
+      if (q.skill) {
+        const s = node.querySelector(".q-tag-skill");
+        s.textContent = q.skill;
+        s.classList.remove("hidden");
+      }
+      node.querySelector(".q-complete").onclick = () => completeQuest(q.id);
+      node.querySelector(".q-notes").textContent = q.notes;
+      qlist.appendChild(node);
+    });
+  }
+  const statsList = el("stats-list");
+  statsList.innerHTML = '<canvas id="stats-chart"></canvas>';
+  const ctx = el("stats-chart");
+  if (statsChart) statsChart.destroy();
+  statsChart = new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: Object.keys(state.player.mainstats),
+      datasets: [
+        {
+          label: "Stats",
+          data: Object.values(state.player.mainstats),
+          backgroundColor: "rgba(14,165,233,0.2)",
+          borderColor: "#0ea5e9"
+        }
+      ]
+    },
+    options: { scales: { r: { beginAtZero: true } } }
+  });
+  const skillsList = el("skills-list");
+  skillsList.innerHTML = "";
+  const sk = state.player.skills;
+  if (Object.keys(sk).length === 0) {
+    skillsList.innerHTML = '<div class="text-sm opacity-70">No skills yet.</div>';
+  } else {
+    Object.entries(sk).forEach(([n, v]) => {
+      const div = document.createElement("div");
+      div.textContent = `${n}: ${v}`;
+      skillsList.appendChild(div);
+    });
+  }
+  const logList = el("log-list");
+  logList.innerHTML = "";
+  if (state.log.length === 0) {
+    logList.innerHTML = '<div class="text-sm opacity-70">No completed quests yet.</div>';
+  } else {
+    state.log
+      .slice()
+      .reverse()
+      .forEach(l => {
+        const node = el("tpl-log").content.cloneNode(true);
+        node.querySelector(".l-title").textContent = l.title;
+        node.querySelector(".l-xp").textContent = l.xp;
+        node.querySelector(".l-stat").textContent = l.stat || "";
+        node.querySelector(".l-skill").textContent = l.skill
+          ? `(${l.skill}+${l.skillPoints})`
+          : "";
+        node.querySelector(".l-notes").textContent = l.notes;
+        node.querySelector(".l-undo").onclick = () => undoQuest(l.id);
+        logList.appendChild(node);
+      });
+  }
 }
 // Events
-el('btn-open-quests').onclick=()=>show('view-quests');
-el('btn-open-stats').onclick=()=>show('view-stats');
-el('btn-open-skills').onclick=()=>show('view-skills');
-el('btn-show-form').onclick=()=>{el('quest-form').classList.toggle('hidden');};
-el('quest-form').onsubmit=e=>{e.preventDefault();
-  const q={id:crypto.randomUUID(),title:el('q-title').value||'Untitled',xp:+el('q-xp').value,stat:el('q-stat').value,skill:el('q-skill').value,notes:el('q-notes').value};
-  state.quests.push(q); save(); render(); el('quest-form').reset(); el('quest-form').classList.add('hidden');};
-el('btn-clear-done').onclick=()=>{state.quests=[];save();render();};
+el("player-name").onchange = e => {
+  state.player.name = e.target.value;
+  save();
+};
+el("btn-open-quests").onclick = () => show("view-quests");
+el("btn-open-stats").onclick = () => show("view-stats");
+el("btn-open-skills").onclick = () => show("view-skills");
+el("btn-open-log").onclick = () => show("view-log");
+el("btn-show-form").onclick = () => {
+  el("quest-form").classList.toggle("hidden");
+};
+el("quest-form").onsubmit = e => {
+  e.preventDefault();
+  const q = {
+    id: crypto.randomUUID(),
+    title: el("q-title").value || "Untitled",
+    xp: +el("q-xp").value,
+    stat: el("q-stat").value,
+    skill: el("q-skill").value.trim(),
+    notes: el("q-notes").value
+  };
+  state.quests.push(q);
+  save();
+  render();
+  el("quest-form").reset();
+  el("quest-form").classList.add("hidden");
+};
+el("btn-clear-done").onclick = () => {
+  state.quests = [];
+  save();
+  render();
+};
 render();
 </script>
 </body>
