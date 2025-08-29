@@ -1,0 +1,11 @@
+Commoner - Level 1
+Adventurer - Level 25
+Fighter - Level 50
+Soilder - Level 100
+Mercenary - Level 125
+Hero - Level 150
+Paladin - Level 200
+SwordMaster - Level 250
+SpellSword - Level 300
+FalconKnight - Level 350
+Mortal Savant - Level 400

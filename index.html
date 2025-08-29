@@ -30,29 +30,41 @@
           <h2 class="text-xl font-semibold mb-3 flex items-center justify-between">Player
             <button id="btn-notify" class="text-xs px-2 py-1 rounded bg-sky-700 hover:bg-sky-600">Enable Notifications</button>
           </h2>
-          <div class="space-y-2">
-            <label class="block text-sm opacity-80">Name</label>
-            <input id="player-name" type="text" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Bowl" />
-            <div class="grid grid-cols-2 gap-2 mt-2">
-              <div class="rounded bg-slate-800 p-3">
-                <div class="text-3xl font-bold" id="level">1</div>
-                <div class="text-xs opacity-70">Level</div>
+            <div class="space-y-2">
+              <label class="block text-sm opacity-80">Name</label>
+              <input id="player-name" type="text" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Bowl" />
+              <div class="flex flex-col items-center mt-2">
+                <img id="player-img" src="Commoner.png" alt="Player" class="w-24 h-24 rounded-full object-cover" />
+                <div id="player-title" class="mt-2 font-semibold">Commoner</div>
               </div>
-              <div class="rounded bg-slate-800 p-3">
-                <div class="text-3xl font-bold" id="xp">0</div>
-                <div class="text-xs opacity-70">XP</div>
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <div class="rounded bg-slate-800 p-3">
+                  <div class="text-3xl font-bold" id="level">1</div>
+                  <div class="text-xs opacity-70">Level</div>
+                </div>
+                <div class="rounded bg-slate-800 p-3">
+                  <div class="text-3xl font-bold" id="xp">0</div>
+                  <div class="text-xs opacity-70">XP</div>
+                </div>
+                <div class="rounded bg-slate-800 p-3">
+                  <div class="text-3xl font-bold" id="prestige">0</div>
+                  <div class="text-xs opacity-70">Prestige</div>
+                </div>
+                <div class="rounded bg-slate-800 p-3">
+                  <div class="text-3xl font-bold" id="gold">0</div>
+                  <div class="text-xs opacity-70">Gold</div>
+                </div>
               </div>
-            </div>
-            <div class="mt-3 text-xs opacity-90">Next level at <span id="next-xp">100</span> XP</div>
+              <div class="mt-3 text-xs opacity-90">Next level at <span id="next-xp">50</span> XP</div>
 
-          <div class="mt-4 grid grid-cols-2 gap-2">
-            <button id="btn-open-quests" class="w-full text-left font-semibold hover:text-sky-300">Quests</button>
-            <button id="btn-open-stats" class="w-full text-left font-semibold hover:text-sky-300">Main Stats</button>
-            <button id="btn-open-skills" class="w-full text-left font-semibold hover:text-sky-300">Skills</button>
-            <button id="btn-open-tags" class="w-full text-left font-semibold hover:text-sky-300">Tags</button>
-            <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Audit Log</button>
-          </div>
-          </div>
+            <div class="mt-4 grid grid-cols-2 gap-2">
+              <button id="btn-open-quests" class="w-full text-left font-semibold hover:text-sky-300">Quests</button>
+              <button id="btn-open-stats" class="w-full text-left font-semibold hover:text-sky-300">Main Stats</button>
+              <button id="btn-open-skills" class="w-full text-left font-semibold hover:text-sky-300">Skills</button>
+              <button id="btn-open-tags" class="w-full text-left font-semibold hover:text-sky-300">Tags</button>
+              <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Audit Log</button>
+            </div>
+            </div>
         </div>
       </div>
 
@@ -180,6 +192,8 @@ const DEFAULT_SAVE = {
     name: "Bowl",
     level: 1,
     xp: 0,
+    prestige: 0,
+    gold: 0,
     mainstats: {
       Strength: 0,
       Dexterity: 0,
@@ -200,9 +214,37 @@ const state =
   structuredClone(DEFAULT_SAVE);
 if (!state.tags) state.tags = [];
 if (!state.player.skills) state.player.skills = {};
+if (state.player.prestige === undefined) state.player.prestige = 0;
+if (state.player.gold === undefined) state.player.gold = 0;
 let statsChart = null;
 let editingId = null;
 let antiQuest = false;
+const TITLE_TIERS = [
+  { level: 400, title: "Mortal Savant" },
+  { level: 350, title: "FalconKnight" },
+  { level: 300, title: "SpellSword" },
+  { level: 250, title: "SwordMaster" },
+  { level: 200, title: "Paladin" },
+  { level: 150, title: "Hero" },
+  { level: 125, title: "Mercenary" },
+  { level: 100, title: "Soilder" },
+  { level: 50, title: "Fighter" },
+  { level: 25, title: "Adventurer" },
+  { level: 1, title: "Commoner" }
+];
+function getTitle(level) {
+  return TITLE_TIERS.find(t => level >= t.level)?.title || "Commoner";
+}
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function goldForDiff(diff) {
+  if (diff <= 500) return rand(1, 5);
+  if (diff <= 750) return rand(5, 30);
+  if (diff <= 1000) return rand(25, 60);
+  if (diff <= 1500) return rand(70, 100);
+  return rand(100, 300);
+}
 function save() {
   localStorage.setItem("taskforge_save", JSON.stringify(state));
 }
@@ -211,21 +253,28 @@ function show(view) {
     el(id).classList.toggle("hidden", id !== view)
   );
 }
-function nextLevelXP() {
-  return state.player.level * 100;
-}
-function addXP(amount) {
-  state.player.xp += amount;
-  while (state.player.xp >= nextLevelXP()) {
-    state.player.xp -= nextLevelXP();
-    state.player.level++;
+  function nextLevelXP() {
+    const lvl = ((state.player.level - 1) % 100) + 1;
+    return lvl * 50;
   }
-  while (state.player.xp < 0 && state.player.level > 1) {
-    state.player.level--;
-    state.player.xp += nextLevelXP();
+  function addXP(amount) {
+    state.player.xp += amount;
+    while (state.player.xp >= nextLevelXP()) {
+      state.player.xp -= nextLevelXP();
+      state.player.level++;
+      if (state.player.level % 100 === 1) {
+        state.player.prestige = (state.player.prestige || 0) + 1;
+        state.player.xp = 0;
+        break;
+      }
+    }
+    while (state.player.xp < 0 && state.player.level > 1) {
+      state.player.level--;
+      if (state.player.level % 100 === 0 && state.player.prestige) state.player.prestige--;
+      state.player.xp += nextLevelXP();
+    }
+    if (state.player.xp < 0) state.player.xp = 0;
   }
-  if (state.player.xp < 0) state.player.xp = 0;
-}
 function completeQuest(id) {
   const idx = state.quests.findIndex(q => q.id === id);
   if (idx === -1) return;
@@ -252,6 +301,9 @@ function completeQuest(id) {
     if (state.player.skills[q.skill] === 0) delete state.player.skills[q.skill];
     sp = delta;
   }
+  const gold = goldForDiff(q.diff);
+  state.player.gold += gold;
+  alert(`You earned ${gold} gold`);
   const logEntry = {
     id: crypto.randomUUID(),
     questId: q.id,
@@ -268,6 +320,7 @@ function completeQuest(id) {
     due: q.due,
     statPoints: st,
     skillPoints: sp,
+    gold,
     completedAt: Date.now()
   };
   state.log.push(logEntry);
@@ -283,15 +336,34 @@ function deleteQuest(id) {
   save();
   render();
 }
+function editTag(id) {
+  const t = state.tags.find(t => t.id === id);
+  if (!t) return;
+  const name = prompt("Tag name", t.name);
+  const color = prompt("Tag color", t.color);
+  if (name) {
+    t.name = name;
+    if (color) t.color = color;
+    save();
+    render();
+  }
+}
+function deleteTag(id) {
+  const idx = state.tags.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  state.tags.splice(idx, 1);
+  state.quests.forEach(q => {
+    if (q.tag === id) q.tag = "";
+  });
+  save();
+  render();
+}
 function undoQuest(logId) {
   const idx = state.log.findIndex(l => l.id === logId);
   if (idx === -1) return;
   const l = state.log[idx];
-  state.player.xp -= l.xp;
-  while (state.player.xp < 0 && state.player.level > 1) {
-    state.player.level--;
-    state.player.xp += nextLevelXP();
-  }
+  addXP(-l.xp);
+  state.player.gold = Math.max(0, state.player.gold - (l.gold || 0));
   if (l.stat) {
     state.player.mainstats[l.stat] = Math.max(
       0,
@@ -342,16 +414,21 @@ function startEdit(id) {
   el("q-notes").value = q.notes || "";
   el("q-anti").classList.toggle("font-bold", antiQuest);
 }
-function render() {
-  el("player-name").value = state.player.name;
-  el("level").textContent = state.player.level;
-  el("xp").textContent = state.player.xp;
-  el("next-xp").textContent = nextLevelXP();
-  el("q-stat").innerHTML =
-    '<option value="">None</option>' +
-    Object.keys(state.player.mainstats)
-      .map(n => `<option value="${n}">${n}</option>`)
-      .join("");
+  function render() {
+    el("player-name").value = state.player.name;
+    el("level").textContent = state.player.level;
+    el("xp").textContent = state.player.xp;
+    el("prestige").textContent = state.player.prestige;
+    el("gold").textContent = state.player.gold;
+    const title = getTitle(state.player.level);
+    el("player-title").textContent = title;
+    el("player-img").src = `${title}.png`; // ensure png name matches title exactly
+    el("next-xp").textContent = nextLevelXP();
+    el("q-stat").innerHTML =
+      '<option value="">None</option>' +
+      Object.keys(state.player.mainstats)
+        .map(n => `<option value="${n}">${n}</option>`)
+        .join("");
   el("q-skill").innerHTML =
     '<option value="">None</option>' +
     Object.keys(state.player.skills)
@@ -447,8 +524,10 @@ function render() {
   } else {
     state.tags.forEach(t => {
       const div = document.createElement("div");
-      div.className = "flex items-center gap-2 mb-1";
-      div.innerHTML = `<span class=\"w-4 h-4 rounded\" style=\"background:${t.color}\"></span>${t.name}`;
+      div.className = "flex items-center gap-2 mb-1 text-sm";
+      div.innerHTML = `<span class=\"w-4 h-4 rounded\" style=\"background:${t.color}\"></span><span class=\"flex-1\">${t.name}</span><span class=\"cursor-pointer text-sky-400\" data-act=\"edit\">edit</span><span class=\"cursor-pointer text-rose-400\" data-act=\"del\">delete</span>`;
+      div.querySelector('[data-act="edit"]').onclick = () => editTag(t.id);
+      div.querySelector('[data-act="del"]').onclick = () => deleteTag(t.id);
       tagsList.appendChild(div);
     });
   }
