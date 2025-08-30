@@ -27,12 +27,11 @@
       <!-- Player Card -->
       <div class="md:col-span-1">
         <div class="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 p-4">
-          <h2 class="text-xl font-semibold mb-3 flex items-center justify-between">Player
+          <h2 class="text-xl font-semibold mb-3 flex items-center justify-between">
+            <span><span id="player-name-display"></span> <span id="edit-name" class="text-xs cursor-pointer text-sky-400 ml-2">edit</span></span>
             <button id="btn-notify" class="text-xs px-2 py-1 rounded bg-sky-700 hover:bg-sky-600">Enable Notifications</button>
           </h2>
             <div class="space-y-2">
-              <label class="block text-sm opacity-80">Name</label>
-              <input id="player-name" type="text" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Bowl" />
               <div class="flex flex-col items-center mt-2">
                 <img id="player-img" src="Commoner.png" alt="Player" class="w-24 h-24 rounded-full object-cover" />
                 <div id="player-title" class="mt-2 font-semibold">Commoner</div>
@@ -164,6 +163,7 @@
         <span class="px-2 py-0.5 rounded bg-amber-700/40 q-tag-skill hidden"></span>
         <span class="q-tag hidden px-2 py-0.5 rounded text-slate-900"></span>
       </div>
+      <div class="q-due text-xs opacity-70 mt-1"></div>
       <p class="q-notes text-sm opacity-85 mt-2"></p>
       <div class="mt-3 flex gap-2">
         <button class="q-complete flex-1 px-3 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-sm">Completed</button>
@@ -178,13 +178,17 @@
       <div class="flex items-start justify-between gap-3">
         <div class="flex-1">
           <h3 class="l-title font-semibold"></h3>
-          <div class="text-xs opacity-70 mt-1"><span class="l-xp"></span> XP <span class="l-stat"></span> <span class="l-skill"></span></div>
+          <div class="text-xs opacity-70 mt-1"><span class="l-xp"></span> XP <span class="l-stat"></span> <span class="l-skill"></span> <span class="l-due"></span></div>
           <p class="l-notes text-sm opacity-85 mt-1"></p>
         </div>
         <button class="l-undo text-xs px-2 py-1 rounded bg-rose-700 hover:bg-rose-600">Undo</button>
       </div>
     </div>
   </template>
+
+  <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center">
+    <div id="modal-box" class="bg-slate-900 p-4 rounded-lg max-w-sm w-full"></div>
+  </div>
 
 <script>
 const DEFAULT_SAVE = {
@@ -219,6 +223,83 @@ if (state.player.gold === undefined) state.player.gold = 0;
 let statsChart = null;
 let editingId = null;
 let antiQuest = false;
+const goldSound = new Audio("Sound Effects/goldcoins.mp3");
+const levelSounds = [
+  new Audio("Sound Effects/lvlupfallout.mp3"),
+  new Audio("Sound Effects/lvlupskyrim.mp3")
+];
+let currentLvlSound = null;
+
+function showModal(content) {
+  const box = el("modal-box");
+  box.innerHTML = "";
+  box.appendChild(content);
+  el("modal").classList.remove("hidden");
+}
+
+function closeModal() {
+  el("modal").classList.add("hidden");
+}
+
+function textModal(label, value, cb) {
+  const div = document.createElement("div");
+  div.innerHTML = `<label class="block mb-2">${label}</label>
+    <input id="modal-input" class="w-full px-3 py-2 rounded bg-slate-800 mb-4" value="${value || ""}" />
+    <div class="text-right space-x-2">
+      <button id="modal-cancel" class="px-3 py-1 rounded bg-slate-700">Cancel</button>
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">Save</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    const val = el("modal-input").value.trim();
+    closeModal();
+    cb(val);
+  };
+  el("modal-cancel").onclick = closeModal;
+}
+
+function tagModal(tag, cb) {
+  const div = document.createElement("div");
+  div.innerHTML = `<label class="block mb-2">Tag name</label>
+    <input id="modal-tag-name" class="w-full px-3 py-2 rounded bg-slate-800 mb-2" value="${tag.name}" />
+    <label class="block mb-2">Color</label>
+    <input id="modal-tag-color" type="color" class="w-full h-10 p-0 rounded bg-slate-800 mb-4" value="${tag.color}" />
+    <div class="text-right space-x-2">
+      <button id="modal-cancel" class="px-3 py-1 rounded bg-slate-700">Cancel</button>
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">Save</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    cb(el("modal-tag-name").value.trim(), el("modal-tag-color").value);
+    closeModal();
+  };
+  el("modal-cancel").onclick = closeModal;
+}
+
+function confirmModal(html, cb) {
+  const div = document.createElement("div");
+  div.innerHTML = `<div class="mb-4 text-sm">${html}</div>
+    <div class="text-right space-x-2">
+      <button id="modal-cancel" class="px-3 py-1 rounded bg-slate-700">Cancel</button>
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">Confirm</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    closeModal();
+    cb();
+  };
+  el("modal-cancel").onclick = closeModal;
+}
+
+function infoModal(html) {
+  const div = document.createElement("div");
+  div.innerHTML = `<div class="mb-4 text-sm">${html}</div>
+    <div class="text-right">
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">OK</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = closeModal;
+}
 const TITLE_TIERS = [
   { level: 400, title: "Mortal Savant" },
   { level: 350, title: "FalconKnight" },
@@ -275,35 +356,46 @@ function show(view) {
     }
     if (state.player.xp < 0) state.player.xp = 0;
   }
-function completeQuest(id) {
+function confirmQuest(id) {
+  const q = state.quests.find(q => q.id === id);
+  if (!q) return;
+  const gold = goldForDiff(q.diff);
+  const st = q.stat ? Math.floor(Math.abs(q.xp) / 300) : 0;
+  const sp = q.skill ? Math.floor(Math.abs(q.xp) / 30) : 0;
+  let html = `Claim rewards for <strong>${q.title}</strong>?<br>XP: ${q.xp >= 0 ? "+" + q.xp : q.xp}<br>Gold: ${gold}`;
+  if (q.stat) html += `<br>${q.stat} ${q.xp < 0 ? "-" : "+"}${st}`;
+  if (q.skill) html += `<br>${q.skill} ${q.xp < 0 ? "-" : "+"}${sp}`;
+  confirmModal(html, () => completeQuest(id, gold, st, sp));
+}
+function completeQuest(id, gold, st, sp) {
   const idx = state.quests.findIndex(q => q.id === id);
   if (idx === -1) return;
   const q = state.quests[idx];
+  if (currentLvlSound) {
+    currentLvlSound.pause();
+    currentLvlSound.currentTime = 0;
+    currentLvlSound = null;
+  }
+  const levelBefore = state.player.level;
   addXP(q.xp);
-  let st = 0;
+  let statPoints = 0;
   if (q.stat) {
-    st = Math.floor(Math.abs(q.xp) / 300);
-    const delta = q.xp < 0 ? -st : st;
+    statPoints = q.xp < 0 ? -st : st;
     state.player.mainstats[q.stat] = Math.max(
       0,
-      (state.player.mainstats[q.stat] || 0) + delta
+      (state.player.mainstats[q.stat] || 0) + statPoints
     );
-    st = delta;
   }
-  let sp = 0;
+  let skillPoints = 0;
   if (q.skill) {
-    sp = Math.floor(Math.abs(q.xp) / 30);
-    const delta = q.xp < 0 ? -sp : sp;
+    skillPoints = q.xp < 0 ? -sp : sp;
     state.player.skills[q.skill] = Math.max(
       0,
-      (state.player.skills[q.skill] || 0) + delta
+      (state.player.skills[q.skill] || 0) + skillPoints
     );
     if (state.player.skills[q.skill] === 0) delete state.player.skills[q.skill];
-    sp = delta;
   }
-  const gold = goldForDiff(q.diff);
   state.player.gold += gold;
-  alert(`You earned ${gold} gold`);
   const logEntry = {
     id: crypto.randomUUID(),
     questId: q.id,
@@ -318,8 +410,8 @@ function completeQuest(id) {
     repeat: q.repeat,
     anti: q.anti,
     due: q.due,
-    statPoints: st,
-    skillPoints: sp,
+    statPoints: statPoints,
+    skillPoints: skillPoints,
     gold,
     completedAt: Date.now()
   };
@@ -328,6 +420,17 @@ function completeQuest(id) {
   if (!q.repeat) state.quests.splice(idx, 1);
   save();
   render();
+  const levelAfter = state.player.level;
+  if (levelAfter > levelBefore) {
+    currentLvlSound = levelSounds[Math.floor(Math.random() * levelSounds.length)];
+    currentLvlSound.play();
+  } else {
+    goldSound.play();
+  }
+  let summary = `${q.xp >= 0 ? "+" + q.xp : q.xp} XP<br>+${gold} Gold`;
+  if (q.stat) summary += `<br>${q.stat} ${statPoints > 0 ? "+" : ""}${statPoints}`;
+  if (q.skill) summary += `<br>${q.skill} ${skillPoints > 0 ? "+" : ""}${skillPoints}`;
+  infoModal(summary);
 }
 function deleteQuest(id) {
   const idx = state.quests.findIndex(q => q.id === id);
@@ -339,14 +442,14 @@ function deleteQuest(id) {
 function editTag(id) {
   const t = state.tags.find(t => t.id === id);
   if (!t) return;
-  const name = prompt("Tag name", t.name);
-  const color = prompt("Tag color", t.color);
-  if (name) {
-    t.name = name;
-    if (color) t.color = color;
-    save();
-    render();
-  }
+  tagModal(t, (name, color) => {
+    if (name) {
+      t.name = name;
+      t.color = color;
+      save();
+      render();
+    }
+  });
 }
 function deleteTag(id) {
   const idx = state.tags.findIndex(t => t.id === id);
@@ -355,6 +458,22 @@ function deleteTag(id) {
   state.quests.forEach(q => {
     if (q.tag === id) q.tag = "";
   });
+  save();
+  render();
+}
+function editSkill(name) {
+  const val = state.player.skills[name];
+  textModal("Rename skill", name, newName => {
+    if (newName && !state.player.skills[newName]) {
+      state.player.skills[newName] = val;
+      delete state.player.skills[name];
+      save();
+      render();
+    }
+  });
+}
+function deleteSkill(name) {
+  delete state.player.skills[name];
   save();
   render();
 }
@@ -415,7 +534,7 @@ function startEdit(id) {
   el("q-anti").classList.toggle("font-bold", antiQuest);
 }
   function render() {
-    el("player-name").value = state.player.name;
+    el("player-name-display").textContent = state.player.name;
     el("level").textContent = state.player.level;
     el("xp").textContent = state.player.xp;
     el("prestige").textContent = state.player.prestige;
@@ -464,7 +583,13 @@ function startEdit(id) {
       if (q.anti) {
         node.querySelector(".q-card").classList.add("bg-rose-900");
       }
-      node.querySelector(".q-complete").onclick = () => completeQuest(q.id);
+      if (q.due) {
+        const d = new Date(q.due);
+        node.querySelector(".q-due").textContent = `Due: ${d.toLocaleString()}`;
+      } else {
+        node.querySelector(".q-due").classList.add("hidden");
+      }
+      node.querySelector(".q-complete").onclick = () => confirmQuest(q.id);
       node.querySelector(".q-delete").onclick = () => deleteQuest(q.id);
       node.querySelector(".q-edit").onclick = () => startEdit(q.id);
       node.querySelector(".q-notes").textContent = q.notes;
@@ -513,7 +638,10 @@ function startEdit(id) {
   } else {
     Object.entries(sk).forEach(([n, v]) => {
       const div = document.createElement("div");
-      div.textContent = `${n}: ${v}`;
+      div.className = "flex items-center gap-2 mb-1 text-sm";
+      div.innerHTML = `<span class=\"flex-1\">${n}: ${v}</span><span class=\"cursor-pointer text-sky-400\" data-act=\"edit\">edit</span><span class=\"cursor-pointer text-rose-400\" data-act=\"del\">delete</span>`;
+      div.querySelector('[data-act="edit"]').onclick = () => editSkill(n);
+      div.querySelector('[data-act="del"]').onclick = () => deleteSkill(n);
       skillsList.appendChild(div);
     });
   }
@@ -547,6 +675,7 @@ function startEdit(id) {
         node.querySelector(".l-skill").textContent = l.skill
           ? `(${l.skill}+${l.skillPoints})`
           : "";
+        if (l.due) node.querySelector(".l-due").textContent = `Due: ${new Date(l.due).toLocaleString()}`;
         node.querySelector(".l-notes").textContent = l.notes;
         node.querySelector(".l-undo").onclick = () => undoQuest(l.id);
         logList.appendChild(node);
@@ -555,9 +684,14 @@ function startEdit(id) {
   el("btn-submit-quest").textContent = editingId ? "Save Changes" : "Add Quest";
 }
 // Events
-el("player-name").onchange = e => {
-  state.player.name = e.target.value;
-  save();
+el("edit-name").onclick = () => {
+  textModal("Player name", state.player.name, val => {
+    if (val) {
+      state.player.name = val;
+      save();
+      render();
+    }
+  });
 };
 el("btn-open-quests").onclick = () => show("view-quests");
 el("btn-open-stats").onclick = () => show("view-stats");
@@ -606,19 +740,31 @@ el("btn-clear-done").onclick = () => {
   render();
 };
 el("btn-reset").onclick = () => {
-  const confirmName = prompt(`Type your player name (${state.player.name}) to confirm reset`);
-  if (confirmName === state.player.name) {
-    localStorage.removeItem("taskforge_save");
-    location.reload();
-  }
+  const div = document.createElement("div");
+  div.innerHTML = `<div class=\"mb-2 text-sm\">Type your player name (${state.player.name}) to confirm reset</div>
+    <input id=\"modal-input\" class=\"w-full px-3 py-2 rounded bg-slate-800 mb-4\" />
+    <div class=\"text-right space-x-2\">
+      <button id=\"modal-cancel\" class=\"px-3 py-1 rounded bg-slate-700\">Cancel</button>
+      <button id=\"modal-ok\" class=\"px-3 py-1 rounded bg-rose-700\">Reset</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    if (el("modal-input").value === state.player.name) {
+      localStorage.removeItem("taskforge_save");
+      location.reload();
+    }
+    closeModal();
+  };
+  el("modal-cancel").onclick = closeModal;
 };
 el("btn-add-skill").onclick = () => {
-  const name = prompt("Skill name?");
-  if (name && !state.player.skills[name]) {
-    state.player.skills[name] = 0;
-    save();
-    render();
-  }
+  textModal("Skill name?", "", name => {
+    if (name && !state.player.skills[name]) {
+      state.player.skills[name] = 0;
+      save();
+      render();
+    }
+  });
 };
 el("btn-add-tag").onclick = () => {
   const name = el("tag-name").value.trim();
