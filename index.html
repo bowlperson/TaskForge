@@ -30,7 +30,7 @@
           </h2>
             <div class="space-y-2">
               <div class="flex flex-col items-center mt-2">
-                <img id="player-img" src="Sprites/Commoner.png" alt="Player" class="w-24 h-24 rounded-full object-cover" />
+                <img id="player-img" src="Sprites/Commoner.png" alt="Player" class="w-24 h-24 object-contain" />
                 <div id="player-title" class="mt-2 font-semibold">Commoner</div>
               </div>
               <div class="grid grid-cols-2 gap-2 mt-2">
@@ -58,6 +58,8 @@
               <button id="btn-open-stats" class="w-full text-left font-semibold hover:text-sky-300">Main Stats</button>
               <button id="btn-open-skills" class="w-full text-left font-semibold hover:text-sky-300">Skills</button>
               <button id="btn-open-tags" class="w-full text-left font-semibold hover:text-sky-300">Tags</button>
+              <button id="btn-open-shop" class="w-full text-left font-semibold hover:text-sky-300">Shop</button>
+              <button id="btn-open-inventory" class="w-full text-left font-semibold hover:text-sky-300">Inventory</button>
               <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Audit Log</button>
             </div>
             </div>
@@ -145,6 +147,39 @@
             </div>
             <div id="tags-list"></div>
           </div>
+          <div id="view-shop" class="hidden">
+            <h2 class="text-xl font-semibold mb-3">Shop</h2>
+            <button id="btn-show-shop-form" class="px-4 py-2 mb-3 rounded bg-sky-700 hover:bg-sky-600">Create Item</button>
+            <form id="shop-form" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+              <div class="sm:col-span-2">
+                <label class="text-sm opacity-80">Title</label>
+                <input id="shop-title" class="w-full px-3 py-2 rounded bg-slate-800" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="text-sm opacity-80">Description</label>
+                <textarea id="shop-desc" class="w-full px-3 py-2 rounded bg-slate-800" rows="2"></textarea>
+              </div>
+              <div>
+                <label class="text-sm opacity-80">Cost</label>
+                <input id="shop-cost" type="number" class="w-full px-3 py-2 rounded bg-slate-800" />
+              </div>
+              <div>
+                <label class="text-sm opacity-80">Image</label>
+                <input id="shop-img" type="file" accept="image/png" class="w-full text-sm" />
+              </div>
+              <div class="sm:col-span-2 flex items-center gap-2">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="shop-rebuy" class="rounded"> Rebuy</label>
+              </div>
+              <div class="sm:col-span-2 flex gap-2">
+                <button id="btn-add-shop" class="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600">Add Item</button>
+              </div>
+            </form>
+            <div id="shop-list" class="grid gap-3"></div>
+          </div>
+          <div id="view-inventory" class="hidden">
+            <h2 class="text-xl font-semibold mb-3">Inventory</h2>
+            <div id="inventory-list" class="grid grid-cols-3 gap-2"></div>
+          </div>
           <div id="view-log" class="hidden"><h2 class="text-xl font-semibold mb-3">Audit Log</h2><div id="log-list"></div></div>
           <div id="view-settings" class="hidden">
             <h2 class="text-xl font-semibold mb-3">Settings</h2>
@@ -158,6 +193,8 @@
                   <option value="0">Fallout</option>
                   <option value="1">Skyrim</option>
                 </select>
+                <label class="block mt-4 mb-2 text-sm">Volume</label>
+                <input id="audio-volume" type="range" min="0" max="1" step="0.01" class="w-full" />
               </div>
             </div>
             <div class="mb-4">
@@ -237,8 +274,10 @@ const DEFAULT_SAVE = {
   quests: [],
   log: [],
   tags: [],
+  shop: [],
+  inventory: [],
   streak: { count: 0, last: 0 },
-  settings: { levelSound: 0, audioCollapsed: false }
+  settings: { levelSound: 0, audioCollapsed: false, volume: 1 }
 };
 const el = id => document.getElementById(id);
 const state =
@@ -248,14 +287,18 @@ if (!state.tags) state.tags = [];
 if (!state.player.skills) state.player.skills = {};
 if (state.player.prestige === undefined) state.player.prestige = 0;
 if (state.player.gold === undefined) state.player.gold = 0;
+if (!state.shop) state.shop = [];
+if (!state.inventory) state.inventory = [];
 if (!state.streak) state.streak = { count: 0, last: 0 };
-if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false };
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1 };
+if (state.settings.volume === undefined) state.settings.volume = 1;
 if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000) {
   state.streak.count = 0;
   state.streak.last = 0;
 }
 let statsChart = null;
 let editingId = null;
+let editingShopId = null;
 let antiQuest = false;
 const goldSound = new Audio("Sound Effects/goldcoins.mp3");
 const levelSounds = [
@@ -263,6 +306,8 @@ const levelSounds = [
   new Audio("Sound Effects/lvlupskyrim.mp3")
 ];
 let currentLvlSound = null;
+goldSound.volume = state.settings.volume;
+levelSounds.forEach(s => (s.volume = state.settings.volume));
 
 function showModal(content) {
   const box = el("modal-box");
@@ -376,9 +421,16 @@ function save() {
   localStorage.setItem("taskforge_save", JSON.stringify(state));
 }
 function show(view) {
-  ["view-quests", "view-stats", "view-skills", "view-tags", "view-log", "view-settings"].forEach(id =>
-    el(id).classList.toggle("hidden", id !== view)
-  );
+  [
+    "view-quests",
+    "view-stats",
+    "view-skills",
+    "view-tags",
+    "view-shop",
+    "view-inventory",
+    "view-log",
+    "view-settings"
+  ].forEach(id => el(id).classList.toggle("hidden", id !== view));
 }
   function nextLevelXP() {
     const lvl = ((state.player.level - 1) % 100) + 1;
@@ -614,14 +666,37 @@ function startEdit(id) {
     const title = getTitle(state.player.level);
     el("player-title").textContent = title;
     el("player-img").src = `Sprites/${title}.png`; // ensure png name matches title exactly
+    const titleId = `title-${title}`;
+    if (!state.inventory.some(i => i.id === titleId)) {
+      state.inventory.push({
+        id: titleId,
+        title: `${title} Trophy`,
+        desc: `Trophy for achieving the ${title} title`,
+        img: `Sprites/${title}.png`,
+        consumable: false
+      });
+      save();
+    }
     el("next-xp").textContent = nextLevelXP();
     const tier = getStreakTier(state.streak.count);
     if (tier && state.streak.count) {
       el("streak-display").innerHTML = `<img src="Sprites/${tier.icon}" class="inline w-5 h-5 mr-1"/>${tier.title} Streak (${state.streak.count})`;
+      const streakId = `streak-${tier.title}`;
+      if (!state.inventory.some(i => i.id === streakId)) {
+        state.inventory.push({
+          id: streakId,
+          title: `${tier.title} Streak Trophy`,
+          desc: `Trophy for achieving a ${tier.title} streak`,
+          img: `Sprites/${tier.icon}`,
+          consumable: false
+        });
+        save();
+      }
     } else {
       el("streak-display").textContent = `Streak (${state.streak.count})`;
     }
     el("level-sound").value = state.settings.levelSound;
+    el("audio-volume").value = state.settings.volume;
     el("audio-section").classList.toggle("hidden", state.settings.audioCollapsed);
     el("audio-toggle-symbol").textContent = state.settings.audioCollapsed ? "+" : "-";
     el("q-stat").innerHTML =
@@ -740,6 +815,75 @@ function startEdit(id) {
       tagsList.appendChild(div);
     });
   }
+  const shopList = el("shop-list");
+  shopList.innerHTML = "";
+  if (state.shop.length === 0) {
+    shopList.innerHTML = '<div class="text-sm opacity-70">No items in shop.</div>';
+  } else {
+    state.shop.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "flex items-center gap-3 p-3 rounded bg-slate-800";
+      div.innerHTML = `<img src="${item.img}" class=\"w-12 h-12 object-contain\"/><div class=\"flex-1\"><div class=\"font-semibold\">${item.title}</div><div class=\"text-xs opacity-70\">${item.cost}g</div></div><button class=\"buy px-2 py-1 text-xs rounded bg-emerald-700 hover:bg-emerald-600\">Buy</button><span class=\"edit text-xs text-sky-400 cursor-pointer ml-2\">edit</span>`;
+      div.querySelector(".buy").onclick = () => {
+        confirmModal(`Buy <strong>${item.title}</strong> for ${item.cost} gold?`, () => {
+          if (state.player.gold >= item.cost) {
+            state.player.gold -= item.cost;
+            state.inventory.push({ id: crypto.randomUUID(), title: item.title, desc: item.desc, img: item.img, consumable: true });
+            if (!item.rebuy) state.shop = state.shop.filter(s => s.id !== item.id);
+            save();
+            render();
+            goldSound.play();
+          } else {
+            infoModal("Not enough gold");
+          }
+        });
+      };
+      div.querySelector(".edit").onclick = () => {
+        editingShopId = item.id;
+        el("shop-title").value = item.title;
+        el("shop-desc").value = item.desc;
+        el("shop-cost").value = item.cost;
+        el("shop-rebuy").checked = item.rebuy;
+        el("shop-form").classList.remove("hidden");
+      };
+      shopList.appendChild(div);
+    });
+  }
+  const invList = el("inventory-list");
+  invList.innerHTML = "";
+  if (state.inventory.length === 0) {
+    invList.innerHTML = '<div class="text-sm opacity-70">Inventory empty.</div>';
+  } else {
+    state.inventory.forEach((item, idx) => {
+      const div = document.createElement("div");
+      div.className = "relative p-2 border rounded text-center";
+      div.innerHTML = `<img src="${item.img}" class=\"w-full h-16 object-contain mx-auto\"/><div class=\"text-xs mt-1\">${item.title}</div>`;
+      const desc = document.createElement("div");
+      desc.className = "absolute inset-0 bg-black/80 text-xs p-2 hidden";
+      desc.textContent = item.desc;
+      div.appendChild(desc);
+      let pinned = false;
+      div.onmouseenter = () => { if (!pinned) desc.classList.remove("hidden"); };
+      div.onmouseleave = () => { if (!pinned) desc.classList.add("hidden"); };
+      div.onclick = () => { pinned = !pinned; desc.classList.toggle("hidden", !pinned); };
+      if (item.consumable) {
+        const btn = document.createElement("button");
+        btn.className = "mt-1 px-2 py-1 text-xs rounded bg-emerald-700 hover:bg-emerald-600";
+        btn.textContent = "Consume";
+        btn.onclick = e => {
+          e.stopPropagation();
+          confirmModal(`Consume <strong>${item.title}</strong>?`, () => {
+            state.inventory.splice(idx, 1);
+            save();
+            render();
+            goldSound.play();
+          });
+        };
+        div.appendChild(btn);
+      }
+      invList.appendChild(div);
+    });
+  }
   const logList = el("log-list");
   logList.innerHTML = "";
   if (state.log.length === 0) {
@@ -780,6 +924,8 @@ el("btn-open-quests").onclick = () => show("view-quests");
 el("btn-open-stats").onclick = () => show("view-stats");
 el("btn-open-skills").onclick = () => show("view-skills");
 el("btn-open-tags").onclick = () => show("view-tags");
+el("btn-open-shop").onclick = () => show("view-shop");
+el("btn-open-inventory").onclick = () => show("view-inventory");
 el("btn-open-log").onclick = () => show("view-log");
 el("btn-open-settings").onclick = () => show("view-settings");
 el("btn-show-form").onclick = () => {
@@ -818,6 +964,37 @@ el("quest-form").onsubmit = e => {
   el("quest-form").reset();
   el("quest-form").classList.add("hidden");
 };
+el("btn-show-shop-form").onclick = () => {
+  editingShopId = null;
+  el("shop-form").reset();
+  el("shop-form").classList.toggle("hidden");
+};
+el("shop-form").onsubmit = e => {
+  e.preventDefault();
+  const title = el("shop-title").value || "Untitled";
+  const desc = el("shop-desc").value || "";
+  const cost = +el("shop-cost").value || 0;
+  const rebuy = el("shop-rebuy").checked;
+  const file = el("shop-img").files[0];
+  const finish = imgData => {
+    const item = { id: editingShopId || crypto.randomUUID(), title, desc, cost, img: imgData || "", rebuy };
+    const idx = state.shop.findIndex(s => s.id === editingShopId);
+    if (idx !== -1) state.shop[idx] = item; else state.shop.push(item);
+    editingShopId = null;
+    save();
+    render();
+    el("shop-form").reset();
+    el("shop-form").classList.add("hidden");
+  };
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => finish(reader.result);
+    reader.readAsDataURL(file);
+  } else {
+    const existing = editingShopId ? state.shop.find(s => s.id === editingShopId)?.img || "" : "";
+    finish(existing);
+  }
+};
 el("btn-clear-done").onclick = () => {
   state.quests = [];
   save();
@@ -850,7 +1027,7 @@ el("file-import").onchange = e => {
 };
 el("btn-reset").onclick = () => {
   const div = document.createElement("div");
-  div.innerHTML = `<div class=\"mb-2 text-sm\">Type your player name (${state.player.name}) to confirm reset</div>
+  div.innerHTML = `<div class=\"mb-2 text-sm\">Type <strong>bowl</strong> to confirm reset</div>
     <input id=\"modal-input\" class=\"w-full px-3 py-2 rounded bg-slate-800 mb-4\" />
     <div class=\"text-right space-x-2\">
       <button id=\"modal-cancel\" class=\"px-3 py-1 rounded bg-slate-700\">Cancel</button>
@@ -858,7 +1035,7 @@ el("btn-reset").onclick = () => {
     </div>`;
   showModal(div);
   el("modal-ok").onclick = () => {
-    if (el("modal-input").value === state.player.name) {
+    if (el("modal-input").value.trim().toLowerCase() === "bowl") {
       localStorage.removeItem("taskforge_save");
       location.reload();
     }
@@ -892,6 +1069,13 @@ el("btn-audio-toggle").onclick = () => {
 };
 el("level-sound").onchange = () => {
   state.settings.levelSound = +el("level-sound").value;
+  save();
+};
+el("audio-volume").oninput = e => {
+  const v = +e.target.value;
+  state.settings.volume = v;
+  goldSound.volume = v;
+  levelSounds.forEach(s => (s.volume = v));
   save();
 };
 el("q-anti").onclick = () => {
