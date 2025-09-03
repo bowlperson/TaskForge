@@ -14,12 +14,9 @@
   <div class="max-w-6xl mx-auto p-4 md:p-8">
     <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <h1 class="text-3xl font-bold">TaskForge <span class="text-sky-400">Beta</span></h1>
-      <div class="flex gap-2">
-        <button id="btn-export" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Export Save</button>
-        <label class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 cursor-pointer">Import Save
-          <input id="file-import" type="file" accept="application/json" class="hidden" />
-        </label>
-        <button id="btn-reset" class="px-3 py-2 rounded-lg bg-rose-700 hover:bg-rose-600">Hard Reset</button>
+      <div class="flex gap-2 items-center">
+        <div id="streak-display" class="text-sm"></div>
+        <button id="btn-open-settings" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Settings</button>
       </div>
     </header>
 
@@ -33,7 +30,7 @@
           </h2>
             <div class="space-y-2">
               <div class="flex flex-col items-center mt-2">
-                <img id="player-img" src="Commoner.png" alt="Player" class="w-24 h-24 rounded-full object-cover" />
+                <img id="player-img" src="Sprites/Commoner.png" alt="Player" class="w-24 h-24 rounded-full object-cover" />
                 <div id="player-title" class="mt-2 font-semibold">Commoner</div>
               </div>
               <div class="grid grid-cols-2 gap-2 mt-2">
@@ -82,8 +79,8 @@
               <div>
                 <label class="text-sm opacity-80">Difficulty</label>
                 <select id="q-diff" class="w-full px-3 py-2 rounded bg-slate-800">
-                  <option value="500">Trivial (500 XP)</option>
-                  <option value="750">Routine (750 XP)</option>
+                  <option value="100">Trivial (100 XP)</option>
+                  <option value="250">Routine (250 XP)</option>
                   <option value="1000" selected>Standard (1,000 XP)</option>
                   <option value="1500">Challenging (1,500 XP)</option>
                   <option value="2750">Formative (2,750 XP)</option>
@@ -149,10 +146,39 @@
             <div id="tags-list"></div>
           </div>
           <div id="view-log" class="hidden"><h2 class="text-xl font-semibold mb-3">Audit Log</h2><div id="log-list"></div></div>
+          <div id="view-settings" class="hidden">
+            <h2 class="text-xl font-semibold mb-3">Settings</h2>
+            <div class="mb-4">
+              <button id="btn-audio-toggle" class="w-full flex justify-between items-center font-semibold">
+                <span>Audio</span><span id="audio-toggle-symbol">-</span>
+              </button>
+              <div id="audio-section" class="mt-2">
+                <label class="block mb-2 text-sm">Level Up Sound</label>
+                <select id="level-sound" class="w-full px-3 py-2 rounded bg-slate-800">
+                  <option value="0">Fallout</option>
+                  <option value="1">Skyrim</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-4">
+              <h3 class="font-semibold mb-2">Save Data</h3>
+              <div class="flex gap-2">
+                <button id="btn-export" class="flex-1 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Export</button>
+                <label class="flex-1 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 cursor-pointer text-center">Import
+                  <input id="file-import" type="file" accept="application/json" class="hidden" />
+                </label>
+              </div>
+            </div>
+            <div class="mb-4">
+              <h3 class="font-semibold mb-2">Danger Zone</h3>
+              <button id="btn-reset" class="w-full px-3 py-2 rounded bg-rose-700 hover:bg-rose-600">Hard Reset</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   </div>
+  <div id="streak-timer" class="fixed top-2 left-2 text-xs"></div>
 
   <template id="tpl-quest">
     <div class="rounded-xl bg-slate-800 p-3 ring-1 ring-white/10 q-card">
@@ -178,7 +204,7 @@
       <div class="flex items-start justify-between gap-3">
         <div class="flex-1">
           <h3 class="l-title font-semibold"></h3>
-          <div class="text-xs opacity-70 mt-1"><span class="l-xp"></span> XP <span class="l-stat"></span> <span class="l-skill"></span> <span class="l-due"></span></div>
+          <div class="text-xs opacity-70 mt-1"><span class="l-xp"></span> XP <span class="l-stat"></span> <span class="l-skill"></span> <span class="l-due"></span> <span class="l-time text-sky-400"></span></div>
           <p class="l-notes text-sm opacity-85 mt-1"></p>
         </div>
         <button class="l-undo text-xs px-2 py-1 rounded bg-rose-700 hover:bg-rose-600">Undo</button>
@@ -210,7 +236,9 @@ const DEFAULT_SAVE = {
   },
   quests: [],
   log: [],
-  tags: []
+  tags: [],
+  streak: { count: 0, last: 0 },
+  settings: { levelSound: 0, audioCollapsed: false }
 };
 const el = id => document.getElementById(id);
 const state =
@@ -220,6 +248,12 @@ if (!state.tags) state.tags = [];
 if (!state.player.skills) state.player.skills = {};
 if (state.player.prestige === undefined) state.player.prestige = 0;
 if (state.player.gold === undefined) state.player.gold = 0;
+if (!state.streak) state.streak = { count: 0, last: 0 };
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false };
+if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000) {
+  state.streak.count = 0;
+  state.streak.last = 0;
+}
 let statsChart = null;
 let editingId = null;
 let antiQuest = false;
@@ -316,12 +350,24 @@ const TITLE_TIERS = [
 function getTitle(level) {
   return TITLE_TIERS.find(t => level >= t.level)?.title || "Commoner";
 }
+const STREAK_TIERS = [
+  { days: 365, title: "1-year", icon: "1year.png" },
+  { days: 180, title: "6-month", icon: "6month.png" },
+  { days: 120, title: "4-month", icon: "4month.png" },
+  { days: 60, title: "2-month", icon: "2month.png" },
+  { days: 30, title: "1-month", icon: "1month.png" },
+  { days: 7, title: "7-day", icon: "7day.png" },
+  { days: 3, title: "3-day", icon: "3day.png" }
+];
+function getStreakTier(days) {
+  return STREAK_TIERS.find(t => days >= t.days) || null;
+}
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 function goldForDiff(diff) {
-  if (diff <= 500) return rand(1, 5);
-  if (diff <= 750) return rand(5, 30);
+  if (diff <= 100) return rand(1, 5);
+  if (diff <= 250) return rand(5, 30);
   if (diff <= 1000) return rand(25, 60);
   if (diff <= 1500) return rand(70, 100);
   return rand(100, 300);
@@ -330,7 +376,7 @@ function save() {
   localStorage.setItem("taskforge_save", JSON.stringify(state));
 }
 function show(view) {
-  ["view-quests", "view-stats", "view-skills", "view-tags", "view-log"].forEach(id =>
+  ["view-quests", "view-stats", "view-skills", "view-tags", "view-log", "view-settings"].forEach(id =>
     el(id).classList.toggle("hidden", id !== view)
   );
 }
@@ -359,18 +405,15 @@ function show(view) {
 function confirmQuest(id) {
   const q = state.quests.find(q => q.id === id);
   if (!q) return;
-  const gold = goldForDiff(q.diff);
-  const st = q.stat ? Math.floor(Math.abs(q.xp) / 300) : 0;
-  const sp = q.skill ? Math.floor(Math.abs(q.xp) / 30) : 0;
-  let html = `Claim rewards for <strong>${q.title}</strong>?<br>XP: ${q.xp >= 0 ? "+" + q.xp : q.xp}<br>Gold: ${gold}`;
-  if (q.stat) html += `<br>${q.stat} ${q.xp < 0 ? "-" : "+"}${st}`;
-  if (q.skill) html += `<br>${q.skill} ${q.xp < 0 ? "-" : "+"}${sp}`;
-  confirmModal(html, () => completeQuest(id, gold, st, sp));
+  confirmModal(`Complete <strong>${q.title}</strong>?`, () => completeQuest(id));
 }
-function completeQuest(id, gold, st, sp) {
+function completeQuest(id) {
   const idx = state.quests.findIndex(q => q.id === id);
   if (idx === -1) return;
   const q = state.quests[idx];
+  const gold = goldForDiff(q.diff);
+  const st = q.stat ? Math.floor(Math.abs(q.xp) / 300) : 0;
+  const sp = q.skill ? Math.floor(Math.abs(q.xp) / 30) : 0;
   if (currentLvlSound) {
     currentLvlSound.pause();
     currentLvlSound.currentTime = 0;
@@ -396,6 +439,7 @@ function completeQuest(id, gold, st, sp) {
     if (state.player.skills[q.skill] === 0) delete state.player.skills[q.skill];
   }
   state.player.gold += gold;
+  const completedAt = Date.now();
   const logEntry = {
     id: crypto.randomUUID(),
     questId: q.id,
@@ -413,16 +457,22 @@ function completeQuest(id, gold, st, sp) {
     statPoints: statPoints,
     skillPoints: skillPoints,
     gold,
-    completedAt: Date.now()
+    completedAt
   };
   state.log.push(logEntry);
   if (state.log.length > 200) state.log.shift();
   if (!q.repeat) state.quests.splice(idx, 1);
+  if (!state.streak.last || completedAt - state.streak.last > 30 * 60 * 60 * 1000) {
+    state.streak.count = 1;
+  } else if (new Date(completedAt).toDateString() !== new Date(state.streak.last).toDateString()) {
+    state.streak.count++;
+  }
+  state.streak.last = completedAt;
   save();
   render();
   const levelAfter = state.player.level;
   if (levelAfter > levelBefore) {
-    currentLvlSound = levelSounds[Math.floor(Math.random() * levelSounds.length)];
+    currentLvlSound = levelSounds[state.settings.levelSound || 0];
     currentLvlSound.play();
   } else {
     goldSound.play();
@@ -438,6 +488,28 @@ function deleteQuest(id) {
   state.quests.splice(idx, 1);
   save();
   render();
+}
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+function updateStreakTimer() {
+  if (!state.streak.last || state.streak.count === 0) {
+    el("streak-timer").textContent = "";
+    return;
+  }
+  const diff = state.streak.last + 30 * 60 * 60 * 1000 - Date.now();
+  if (diff <= 0) {
+    state.streak.count = 0;
+    state.streak.last = 0;
+    save();
+    render();
+    el("streak-timer").textContent = "";
+  } else {
+    const h = pad(Math.floor(diff / 3600000));
+    const m = pad(Math.floor((diff % 3600000) / 60000));
+    const s = pad(Math.floor((diff % 60000) / 1000));
+    el("streak-timer").textContent = `${h}:${m}:${s}`;
+  }
 }
 function editTag(id) {
   const t = state.tags.find(t => t.id === id);
@@ -541,8 +613,17 @@ function startEdit(id) {
     el("gold").textContent = state.player.gold;
     const title = getTitle(state.player.level);
     el("player-title").textContent = title;
-    el("player-img").src = `${title}.png`; // ensure png name matches title exactly
+    el("player-img").src = `Sprites/${title}.png`; // ensure png name matches title exactly
     el("next-xp").textContent = nextLevelXP();
+    const tier = getStreakTier(state.streak.count);
+    if (tier && state.streak.count) {
+      el("streak-display").innerHTML = `<img src="Sprites/${tier.icon}" class="inline w-5 h-5 mr-1"/>${tier.title} Streak (${state.streak.count})`;
+    } else {
+      el("streak-display").textContent = `Streak (${state.streak.count})`;
+    }
+    el("level-sound").value = state.settings.levelSound;
+    el("audio-section").classList.toggle("hidden", state.settings.audioCollapsed);
+    el("audio-toggle-symbol").textContent = state.settings.audioCollapsed ? "+" : "-";
     el("q-stat").innerHTML =
       '<option value="">None</option>' +
       Object.keys(state.player.mainstats)
@@ -676,12 +757,14 @@ function startEdit(id) {
           ? `(${l.skill}+${l.skillPoints})`
           : "";
         if (l.due) node.querySelector(".l-due").textContent = `Due: ${new Date(l.due).toLocaleString()}`;
+        node.querySelector(".l-time").textContent = new Date(l.completedAt).toLocaleString();
         node.querySelector(".l-notes").textContent = l.notes;
         node.querySelector(".l-undo").onclick = () => undoQuest(l.id);
         logList.appendChild(node);
       });
   }
   el("btn-submit-quest").textContent = editingId ? "Save Changes" : "Add Quest";
+  updateStreakTimer();
 }
 // Events
 el("edit-name").onclick = () => {
@@ -698,6 +781,7 @@ el("btn-open-stats").onclick = () => show("view-stats");
 el("btn-open-skills").onclick = () => show("view-skills");
 el("btn-open-tags").onclick = () => show("view-tags");
 el("btn-open-log").onclick = () => show("view-log");
+el("btn-open-settings").onclick = () => show("view-settings");
 el("btn-show-form").onclick = () => {
   editingId = null;
   antiQuest = false;
@@ -739,6 +823,31 @@ el("btn-clear-done").onclick = () => {
   save();
   render();
 };
+el("btn-export").onclick = () => {
+  const data = JSON.stringify(state);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "taskforge_save.json";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+el("file-import").onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      localStorage.setItem("taskforge_save", JSON.stringify(data));
+      location.reload();
+    } catch (err) {
+      infoModal("Invalid file");
+    }
+  };
+  reader.readAsText(file);
+};
 el("btn-reset").onclick = () => {
   const div = document.createElement("div");
   div.innerHTML = `<div class=\"mb-2 text-sm\">Type your player name (${state.player.name}) to confirm reset</div>
@@ -776,10 +885,20 @@ el("btn-add-tag").onclick = () => {
     render();
   }
 };
+el("btn-audio-toggle").onclick = () => {
+  state.settings.audioCollapsed = !state.settings.audioCollapsed;
+  save();
+  render();
+};
+el("level-sound").onchange = () => {
+  state.settings.levelSound = +el("level-sound").value;
+  save();
+};
 el("q-anti").onclick = () => {
   antiQuest = !antiQuest;
   el("q-anti").classList.toggle("font-bold", antiQuest);
 };
+setInterval(updateStreakTimer, 1000);
 render();
 </script>
 </body>
