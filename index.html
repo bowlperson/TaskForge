@@ -10,9 +10,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%230ea5e9'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='48' fill='white' font-family='monospace'%3ETF%3C/text%3E%3C/svg%3E" />
-  <style>* { scrollbar-width: thin; }</style>
+  <style>
+    * { scrollbar-width: thin; }
+    body.theme-default { background-color: #0f172a; color: #f1f5f9; }
+    body.theme-dark { background-color: #000; color: #e5e7eb; }
+    body.theme-emerald { background-color: #064e3b; color: #d1fae5; }
+    body.theme-rose { background-color: #881337; color: #ffe4e6; }
+    body.theme-amber { background-color: #78350f; color: #fffbeb; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen theme-default">
   <div class="max-w-6xl mx-auto p-4 md:p-8">
     <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <h1 class="text-3xl font-bold">TaskForge <span class="text-sky-400">Beta</span></h1>
@@ -108,9 +115,11 @@
                 <label class="flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="q-adjust" class="rounded"> Adjust skill values</label>
                 <button type="button" id="btn-add-skill-row" class="mt-1 px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700">Add Skill</button>
               </div>
-              <div>
-                <label class="text-sm opacity-80">Main Stat</label>
-                <select id="q-stat" multiple class="w-full px-3 py-2 rounded bg-slate-800"></select>
+              <div class="md:col-span-2">
+                <label class="text-sm opacity-80">Main Stats</label>
+                <div id="q-stats" class="space-y-1"></div>
+                <label class="flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="q-stat-adjust" class="rounded"> Adjust stat values</label>
+                <button type="button" id="btn-add-stat-row" class="mt-1 px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700">Add Stat</button>
               </div>
               <div>
                 <label class="text-sm opacity-80">Tag</label>
@@ -211,6 +220,19 @@
               </div>
             </div>
             <div class="mb-4">
+              <h3 class="font-semibold mb-2">Developer</h3>
+              <label class="block mb-2 text-sm">Color Theme</label>
+              <select id="dev-theme" class="w-full px-3 py-2 rounded bg-slate-800 mb-4">
+                <option value="default">Default</option>
+                <option value="dark">Dark Mode</option>
+                <option value="emerald">Emerald</option>
+                <option value="rose">Rose</option>
+                <option value="amber">Amber</option>
+              </select>
+              <h4 class="font-semibold mb-2">Titles</h4>
+              <div id="dev-titles" class="space-y-2"></div>
+            </div>
+            <div class="mb-4">
               <h3 class="font-semibold mb-2">Danger Zone</h3>
               <button id="btn-reset" class="w-full px-3 py-2 rounded bg-rose-700 hover:bg-rose-600">Hard Reset</button>
             </div>
@@ -258,6 +280,17 @@
   </div>
 
 <script>
+const DEFAULT_SKILLS = [
+  { name: "Fitness", priority: 3, desc: "strength, endurance, and physical training that builds your body over time." },
+  { name: "Study", priority: 1, desc: "focused learning sessions, absorbing knowledge, and structured practice." },
+  { name: "Strategy", priority: 1, desc: "tactical games, Chess, Puzzles, competitive strategy." },
+  { name: "Writing", priority: 3, desc: "creative expression, journaling, or refining your ability to communicate through words." },
+  { name: "Productivity", priority: 5, desc: "Completing need to do Quest, organizing your time, and completing things on time." },
+  { name: "Mindfulness", priority: 2, desc: "meditation, and practicing awareness, enjoy and take break." },
+  { name: "Cooking", priority: 3, desc: "preparing meals and learning recipes." },
+  { name: "Reading", priority: 4, desc: "consuming literature and books." },
+  { name: "Vitality", priority: 2, desc: "energy, health, and wellbeing." }
+];
 const DEFAULT_SAVE = {
   player: {
     name: "Bowl",
@@ -273,15 +306,16 @@ const DEFAULT_SAVE = {
       Wisdom: 0,
       Charisma: 0
     },
-    skills: {}
+    skills: Object.fromEntries(DEFAULT_SKILLS.map(s => [s.name, 0]))
   },
   quests: [],
   log: [],
   tags: [],
+  skills: DEFAULT_SKILLS,
   shop: [],
   inventory: [],
   streak: { count: 0, last: 0 },
-  settings: { levelSound: 0, audioCollapsed: false, volume: 1 }
+  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} }
 };
 const el = id => document.getElementById(id);
 const state =
@@ -289,14 +323,21 @@ const state =
   structuredClone(DEFAULT_SAVE);
 if (!state.tags) state.tags = [];
 state.tags.forEach(t => { if (t.priority === undefined) t.priority = 0; });
+if (!state.skills) state.skills = DEFAULT_SKILLS.slice();
 if (!state.player.skills) state.player.skills = {};
+Object.keys(state.player.skills).forEach(k => {
+  if (!state.skills.some(s => s.name === k)) state.skills.push({ name: k, priority: 3, desc: "" });
+});
+state.skills.forEach(s => { if (state.player.skills[s.name] === undefined) state.player.skills[s.name] = 0; });
 if (state.player.prestige === undefined) state.player.prestige = 0;
 if (state.player.gold === undefined) state.player.gold = 0;
 if (!state.shop) state.shop = [];
 if (!state.inventory) state.inventory = [];
 if (!state.streak) state.streak = { count: 0, last: 0 };
-if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1 };
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} };
 if (state.settings.volume === undefined) state.settings.volume = 1;
+if (!state.settings.theme) state.settings.theme = "default";
+if (!state.settings.titles) state.settings.titles = {};
 state.quests.forEach(q => {
   if (q.stat && !q.stats) {
     q.stats = q.stat ? [q.stat] : [];
@@ -305,6 +346,9 @@ state.quests.forEach(q => {
   if (q.skill && !q.skills) {
     q.skills = q.skill ? [{ name: q.skill, mult: 1 }] : [];
     delete q.skill;
+  }
+  if (q.stats && q.stats.length && typeof q.stats[0] === "string") {
+    q.stats = q.stats.map(s => ({ name: s, mult: 1 }));
   }
 });
 state.log.forEach(l => {
@@ -376,6 +420,29 @@ function tagModal(tag, cb) {
   el("modal-ok").onclick = () => {
     cb(el("modal-tag-name").value.trim(), el("modal-tag-color").value, +el("modal-tag-priority").value || 0);
     closeModal();
+  };
+  el("modal-cancel").onclick = closeModal;
+}
+
+function skillModal(skill, cb, editing = false) {
+  const div = document.createElement("div");
+  div.innerHTML = `<label class="block mb-2">Name</label>
+    <input id="modal-skill-name" class="w-full px-3 py-2 rounded bg-slate-800 mb-2" value="${skill.name}" ${editing ? "disabled" : ""} />
+    <label class="block mb-2">Priority (1-5)</label>
+    <input id="modal-skill-priority" type="number" min="1" max="5" class="w-full px-3 py-2 rounded bg-slate-800 mb-2" value="${skill.priority || 1}" />
+    <label class="block mb-2">Description</label>
+    <textarea id="modal-skill-desc" class="w-full px-3 py-2 rounded bg-slate-800 mb-4" rows="3">${skill.desc || ""}</textarea>
+    <div class="text-right space-x-2">
+      <button id="modal-cancel" class="px-3 py-1 rounded bg-slate-700">Cancel</button>
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">Save</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    const name = el("modal-skill-name").value.trim();
+    const priority = +el("modal-skill-priority").value || 1;
+    const desc = el("modal-skill-desc").value.trim();
+    closeModal();
+    cb({ name, priority, desc });
   };
   el("modal-cancel").onclick = closeModal;
 }
@@ -511,7 +578,7 @@ function completeQuest(id) {
   if (idx === -1) return;
   const q = state.quests[idx];
   const gold = goldForDiff(q.diff);
-  const st = Math.floor(Math.abs(q.xp) / 300);
+  const stBase = Math.floor(Math.abs(q.xp) / 300);
   const spBase = Math.abs(q.xp) / 30;
   if (currentLvlSound) {
     currentLvlSound.pause();
@@ -522,13 +589,13 @@ function completeQuest(id) {
   addXP(q.xp);
   const statEntries = [];
   if (q.stats && q.stats.length) {
-    q.stats.forEach(name => {
-      const points = q.xp < 0 ? -st : st;
-      state.player.mainstats[name] = Math.max(
+    q.stats.forEach(st => {
+      const pts = q.xp < 0 ? -Math.floor(stBase * st.mult) : Math.floor(stBase * st.mult);
+      state.player.mainstats[st.name] = Math.max(
         0,
-        (state.player.mainstats[name] || 0) + points
+        (state.player.mainstats[st.name] || 0) + pts
       );
-      statEntries.push({ name, points });
+      statEntries.push({ name: st.name, points: pts });
     });
   }
   const skillEntries = [];
@@ -645,9 +712,7 @@ function deleteTag(id) {
 function populateSkillOptions(sel) {
   sel.innerHTML =
     '<option value="">None</option>' +
-    Object.keys(state.player.skills)
-      .map(s => `<option value="${s}">${s}</option>`)
-      .join("");
+    state.skills.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
 }
 
 function addSkillRow(name = "", mult = 1) {
@@ -669,21 +734,108 @@ function addSkillRow(name = "", mult = 1) {
   row.appendChild(input);
   el("q-skills").appendChild(row);
 }
-function editSkill(name) {
-  const val = state.player.skills[name];
-  textModal("Rename skill", name, newName => {
-    if (newName && !state.player.skills[newName]) {
-      state.player.skills[newName] = val;
-      delete state.player.skills[name];
-      save();
-      render();
-    }
-  });
+function populateStatOptions(sel) {
+  sel.innerHTML =
+    '<option value="">None</option>' +
+    Object.keys(state.player.mainstats)
+      .map(s => `<option value="${s}">${s}</option>`)
+      .join("");
 }
+
+function addStatRow(name = "", mult = 1) {
+  const row = document.createElement("div");
+  row.className = "flex gap-2";
+  const select = document.createElement("select");
+  select.className = "flex-1 px-3 py-2 rounded bg-slate-800 q-stat";
+  populateStatOptions(select);
+  select.value = name;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.1";
+  input.min = "0.1";
+  input.max = "1";
+  input.value = mult;
+  input.className = "w-20 px-2 py-2 rounded bg-slate-800 q-stat-mult";
+  if (!el("q-stat-adjust") || !el("q-stat-adjust").checked) input.classList.add("hidden");
+  row.appendChild(select);
+  row.appendChild(input);
+  el("q-stats").appendChild(row);
+}
+
+function editSkillMeta(name) {
+  const sk = state.skills.find(s => s.name === name);
+  if (!sk) return;
+  skillModal(sk, ({ priority, desc }) => {
+    sk.priority = priority;
+    sk.desc = desc;
+    save();
+    render();
+  }, true);
+}
+
 function deleteSkill(name) {
   delete state.player.skills[name];
+  state.skills = state.skills.filter(s => s.name !== name);
+  state.quests.forEach(q => {
+    if (q.skills) q.skills = q.skills.filter(s => s.name !== name);
+  });
   save();
   render();
+}
+
+function renderDevTitles() {
+  const list = el("dev-titles");
+  if (!list) return;
+  list.innerHTML = "";
+  TITLE_TIERS.forEach(t => {
+    const custom = state.settings.titles[t.title];
+    const name = custom?.name || t.title;
+    const img = custom?.img || `Sprites/${t.title}.png`;
+    const div = document.createElement("div");
+    div.className = "flex items-center gap-2";
+    div.innerHTML = `<img src="${img}" class="w-8 h-8 object-contain"/><span class="flex-1">${name}</span><button class="px-2 py-1 text-xs rounded bg-slate-700 dev-title-edit" data-key="${t.title}">Edit</button><button class="px-2 py-1 text-xs rounded bg-rose-700 dev-title-undo ${custom ? "" : "hidden"}" data-key="${t.title}">Undo</button>`;
+    list.appendChild(div);
+  });
+  list.querySelectorAll(".dev-title-edit").forEach(btn => btn.onclick = () => editTitle(btn.dataset.key));
+  list.querySelectorAll(".dev-title-undo").forEach(btn => btn.onclick = () => { delete state.settings.titles[btn.dataset.key]; save(); render(); });
+}
+
+function editTitle(key) {
+  const custom = state.settings.titles[key] || { name: key, img: "" };
+  const div = document.createElement("div");
+  div.innerHTML = `<label class="block mb-2">Title Name</label>
+    <input id="modal-title-name" class="w-full px-3 py-2 rounded bg-slate-800 mb-2" value="${custom.name}" />
+    <label class="block mb-2">PNG</label>
+    <input id="modal-title-file" type="file" accept="image/png" class="w-full mb-4" />
+    <div class="text-right space-x-2">
+      <button id="modal-cancel" class="px-3 py-1 rounded bg-slate-700">Cancel</button>
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">Save</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    const name = el("modal-title-name").value.trim() || key;
+    const file = el("modal-title-file").files[0];
+    const finish = img => {
+      state.settings.titles[key] = { name, img };
+      save();
+      render();
+      closeModal();
+    };
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => finish(reader.result);
+      reader.readAsDataURL(file);
+    } else {
+      finish(custom.img);
+    }
+  };
+  el("modal-cancel").onclick = closeModal;
+}
+
+function applyTheme() {
+  const t = state.settings.theme || "default";
+  document.body.classList.remove("theme-default", "theme-dark", "theme-emerald", "theme-rose", "theme-amber");
+  document.body.classList.add(`theme-${t}`);
 }
 function undoQuest(logId) {
   const idx = state.log.findIndex(l => l.id === logId);
@@ -727,7 +879,7 @@ function undoQuest(logId) {
       diff: l.diff,
       time: l.time,
       xp: l.xp,
-      stats: l.stats ? l.stats.map(s => s.name) : (l.stat ? [l.stat] : []),
+      stats: l.stats ? l.stats.map(s => ({ name: s.name, mult: 1 })) : (l.stat ? [{ name: l.stat, mult: 1 }] : []),
       skills: l.skills ? l.skills.map(s => ({ name: s.name, mult: 1 })) : (l.skill ? [{ name: l.skill, mult: 1 }] : []),
       tag: l.tag,
       notes: l.notes,
@@ -753,9 +905,13 @@ function startEdit(id) {
   if (!q.skills || q.skills.length === 0) addSkillRow();
   el("q-adjust").checked = (q.skills || []).some(s => s.mult !== 1);
   document.querySelectorAll(".q-skill-mult").forEach(i => i.classList.toggle("hidden", !el("q-adjust").checked));
-  Array.from(el("q-stat").options).forEach(o => {
-    o.selected = (q.stats || []).includes(o.value);
-  });
+  document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+  el("q-stats").innerHTML = "";
+  (q.stats || []).forEach(s => addStatRow(s.name, s.mult));
+  if (!q.stats || q.stats.length === 0) addStatRow();
+  el("q-stat-adjust").checked = (q.stats || []).some(s => s.mult !== 1);
+  document.querySelectorAll(".q-stat-mult").forEach(i => i.classList.toggle("hidden", !el("q-stat-adjust").checked));
+  document.querySelectorAll(".q-stat").forEach(populateStatOptions);
   el("q-tag").value = q.tag || "";
   el("q-due").value = q.due || "";
   el("q-repeat").checked = q.repeat || false;
@@ -768,16 +924,19 @@ function startEdit(id) {
     el("xp").textContent = state.player.xp;
     el("prestige").textContent = state.player.prestige;
     el("gold").textContent = state.player.gold;
-    const title = getTitle(state.player.level);
-    el("player-title").textContent = title;
-    el("player-img").src = `Sprites/${title}.png`; // ensure png name matches title exactly
-    const titleId = `title-${title}`;
+    const baseTitle = getTitle(state.player.level);
+    const custom = state.settings.titles[baseTitle];
+    const displayTitle = custom?.name || baseTitle;
+    const titleImg = custom?.img || `Sprites/${baseTitle}.png`;
+    el("player-title").textContent = displayTitle;
+    el("player-img").src = titleImg;
+    const titleId = `title-${baseTitle}`;
     if (!state.inventory.some(i => i.id === titleId)) {
       state.inventory.push({
         id: titleId,
-        title: `${title} Trophy`,
-        desc: `Trophy for achieving the ${title} title`,
-        img: `Sprites/${title}.png`,
+        title: `${displayTitle} Trophy`,
+        desc: `Trophy for achieving the ${displayTitle} title`,
+        img: titleImg,
         consumable: false
       });
       save();
@@ -804,15 +963,17 @@ function startEdit(id) {
     el("audio-volume").value = state.settings.volume;
     el("audio-section").classList.toggle("hidden", state.settings.audioCollapsed);
     el("audio-toggle-symbol").textContent = state.settings.audioCollapsed ? "+" : "-";
-    el("q-stat").innerHTML =
-      '<option value="">None</option>' +
-      Object.keys(state.player.mainstats)
-        .map(n => `<option value="${n}">${n}</option>`)
-        .join("");
-  el("q-skills").innerHTML = "";
-  addSkillRow();
-  el("q-adjust").checked = false;
-  document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+    el("dev-theme").value = state.settings.theme || "default";
+    applyTheme();
+    renderDevTitles();
+    el("q-stats").innerHTML = "";
+    addStatRow();
+    el("q-stat-adjust").checked = false;
+    el("q-skills").innerHTML = "";
+    addSkillRow();
+    el("q-adjust").checked = false;
+    document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+    document.querySelectorAll(".q-stat").forEach(populateStatOptions);
   el("q-tag").innerHTML =
     '<option value="">None</option>' +
     state.tags
@@ -836,7 +997,13 @@ function startEdit(id) {
       const node = el("tpl-quest").content.cloneNode(true);
       node.querySelector(".q-title").textContent = q.title;
       node.querySelector(".q-xp").textContent = q.xp >= 0 ? `+${q.xp}` : q.xp;
-      node.querySelector(".q-tag-stat").textContent = (q.stats || []).join(", ");
+      const statSpan = node.querySelector(".q-tag-stat");
+      if (q.stats && q.stats.length) {
+        statSpan.textContent = q.stats.map(s => s.name).join(", ");
+        statSpan.classList.remove("hidden");
+      } else {
+        statSpan.classList.add("hidden");
+      }
       if (q.skills && q.skills.length) {
         const s = node.querySelector(".q-tag-skill");
         s.textContent = q.skills.map(sk => sk.name).join(", ");
@@ -903,18 +1070,22 @@ function startEdit(id) {
     .join("");
   const skillsList = el("skills-list");
   skillsList.innerHTML = "";
-  const sk = state.player.skills;
-  if (Object.keys(sk).length === 0) {
+  if (state.skills.length === 0) {
     skillsList.innerHTML = '<div class="text-sm opacity-70">No skills yet.</div>';
   } else {
-    Object.entries(sk).forEach(([n, v]) => {
-      const div = document.createElement("div");
-      div.className = "flex items-center gap-2 mb-1 text-sm";
-      div.innerHTML = `<span class=\"flex-1\">${n}: ${v}</span><span class=\"cursor-pointer text-sky-400\" data-act=\"edit\">edit</span><span class=\"cursor-pointer text-rose-400\" data-act=\"del\">delete</span>`;
-      div.querySelector('[data-act="edit"]').onclick = () => editSkill(n);
-      div.querySelector('[data-act="del"]').onclick = () => deleteSkill(n);
-      skillsList.appendChild(div);
-    });
+    state.skills
+      .slice()
+      .sort((a, b) => (a.priority || 0) - (b.priority || 0))
+      .forEach(sk => {
+        const val = state.player.skills[sk.name] || 0;
+        const div = document.createElement("div");
+        div.className = "mb-2 text-sm";
+        div.innerHTML = `<div class=\"flex items-center gap-2\"><span class=\"flex-1 cursor-pointer skill-name\" data-name=\"${sk.name}\">${sk.name} (p${sk.priority})</span><span>${val}</span><span class=\"cursor-pointer text-sky-400\" data-act=\"edit\">edit</span><span class=\"cursor-pointer text-rose-400\" data-act=\"del\">delete</span></div><p class=\"sk-desc hidden text-xs mt-1 opacity-80\">${sk.desc}</p>`;
+        div.querySelector('.skill-name').onclick = () => div.querySelector('.sk-desc').classList.toggle('hidden');
+        div.querySelector('[data-act="edit"]').onclick = () => editSkillMeta(sk.name);
+        div.querySelector('[data-act="del"]').onclick = () => deleteSkill(sk.name);
+        skillsList.appendChild(div);
+      });
   }
   const tagsList = el("tags-list");
   tagsList.innerHTML = "";
@@ -1058,6 +1229,11 @@ el("btn-show-form").onclick = () => {
   el("q-skills").innerHTML = "";
   addSkillRow();
   el("q-adjust").checked = false;
+  el("q-stats").innerHTML = "";
+  addStatRow();
+  el("q-stat-adjust").checked = false;
+  document.querySelectorAll(".q-stat").forEach(populateStatOptions);
+  document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
   el("quest-form").classList.toggle("hidden");
 };
 el("quest-form").onsubmit = e => {
@@ -1066,8 +1242,13 @@ el("quest-form").onsubmit = e => {
   const time = +el("q-time").value;
   const baseXP = Math.round(diff * time);
   const xp = antiQuest ? Math.round(baseXP * -0.25) : baseXP;
-  const stats = Array.from(el("q-stat").selectedOptions)
-    .map(o => o.value)
+  const stats = Array.from(document.querySelectorAll(".q-stat"))
+    .map((sel, i) => {
+      const name = sel.value;
+      if (!name) return null;
+      const mult = +document.querySelectorAll(".q-stat-mult")[i].value || 1;
+      return { name, mult };
+    })
     .filter(Boolean);
   const skills = Array.from(document.querySelectorAll(".q-skill"))
     .map((sel, i) => {
@@ -1104,6 +1285,16 @@ el("btn-add-skill-row").onclick = () => addSkillRow();
 el("q-adjust").onchange = () => {
   const show = el("q-adjust").checked;
   document.querySelectorAll(".q-skill-mult").forEach(i => i.classList.toggle("hidden", !show));
+};
+el("btn-add-stat-row").onclick = () => addStatRow();
+el("q-stat-adjust").onchange = () => {
+  const show = el("q-stat-adjust").checked;
+  document.querySelectorAll(".q-stat-mult").forEach(i => i.classList.toggle("hidden", !show));
+};
+el("dev-theme").onchange = e => {
+  state.settings.theme = e.target.value;
+  applyTheme();
+  save();
 };
 el("btn-show-shop-form").onclick = () => {
   editingShopId = null;
@@ -1185,9 +1376,10 @@ el("btn-reset").onclick = () => {
   el("modal-cancel").onclick = closeModal;
 };
 el("btn-add-skill").onclick = () => {
-  textModal("Skill name?", "", name => {
-    if (name && !state.player.skills[name]) {
-      state.player.skills[name] = 0;
+  skillModal({ name: "", priority: 1, desc: "" }, data => {
+    if (data.name && !state.skills.some(s => s.name === data.name)) {
+      state.skills.push(data);
+      state.player.skills[data.name] = 0;
       save();
       render();
     }
