@@ -12,10 +12,6 @@
   <meta name="theme-color" content="#0ea5e9" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%230ea5e9'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' font-size='48' fill='white' font-family='monospace'%3ETF%3C/text%3E%3C/svg%3E" />
   <style>
     * { scrollbar-width: thin; }
@@ -32,8 +28,6 @@
       <h1 class="text-3xl font-bold">TaskForge <span class="text-sky-400">Beta</span></h1>
       <div class="flex gap-2 items-center">
         <div id="streak-display" class="text-sm"></div>
-        <button id="btn-login" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Sign in with Google</button>
-        <button id="btn-logout" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 hidden">Sign Out</button>
         <button id="btn-open-settings" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Settings</button>
       </div>
     </header>
@@ -327,21 +321,6 @@ const DEFAULT_SAVE = {
   settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} }
 };
 const el = id => document.getElementById(id);
-// Firebase
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-db.enablePersistence().catch(() => {});
-let userDocRef = null;
 const state =
   JSON.parse(localStorage.getItem("taskforge_save") || "null") ||
   structuredClone(DEFAULT_SAVE);
@@ -557,9 +536,6 @@ function goldForDiff(diff) {
 }
 function save() {
   localStorage.setItem("taskforge_save", JSON.stringify(state));
-  if (auth.currentUser && userDocRef) {
-    userDocRef.set(state);
-  }
 }
 function show(view) {
   [
@@ -849,14 +825,9 @@ function editTitle(key) {
       closeModal();
     };
     if (file) {
-      if (auth.currentUser) {
-        const ref = storage.ref(`titles/${auth.currentUser.uid}/${key}.png`);
-        ref.put(file).then(() => ref.getDownloadURL()).then(url => finish(url));
-      } else {
-        const reader = new FileReader();
-        reader.onload = () => finish(reader.result);
-        reader.readAsDataURL(file);
-      }
+      const reader = new FileReader();
+      reader.onload = () => finish(reader.result);
+      reader.readAsDataURL(file);
     } else {
       finish(custom.img);
     }
@@ -1264,9 +1235,6 @@ el("btn-open-shop").onclick = () => show("view-shop");
 el("btn-open-inventory").onclick = () => show("view-inventory");
 el("btn-open-log").onclick = () => show("view-log");
 el("btn-open-settings").onclick = () => show("view-settings");
-el("btn-login").onclick = () =>
-  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-el("btn-logout").onclick = () => auth.signOut();
 el("btn-show-form").onclick = () => {
   editingId = null;
   antiQuest = false;
@@ -1366,14 +1334,9 @@ el("shop-form").onsubmit = e => {
     el("shop-form").classList.add("hidden");
   };
   if (file) {
-    if (auth.currentUser) {
-      const ref = storage.ref(`shop/${auth.currentUser.uid}/${id}.png`);
-      ref.put(file).then(() => ref.getDownloadURL()).then(url => finish(url));
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => finish(reader.result);
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = () => finish(reader.result);
+    reader.readAsDataURL(file);
   } else {
     const existing = editingShopId ? state.shop.find(s => s.id === editingShopId)?.img || "" : "";
     finish(existing);
@@ -1469,33 +1432,6 @@ el("q-anti").onclick = () => {
   antiQuest = !antiQuest;
   el("q-anti").classList.toggle("font-bold", antiQuest);
 };
-auth.onAuthStateChanged(async user => {
-  if (user) {
-    el("btn-login").classList.add("hidden");
-    el("btn-logout").classList.remove("hidden");
-    userDocRef = db.collection('saves').doc(user.uid);
-    const doc = await userDocRef.get();
-    if (doc.exists) {
-      Object.assign(state, doc.data());
-    } else {
-      await userDocRef.set(state);
-    }
-    userDocRef.onSnapshot(snap => {
-      if (snap.exists) {
-        Object.assign(state, snap.data());
-        localStorage.setItem("taskforge_save", JSON.stringify(state));
-        render();
-      }
-    });
-    render();
-  } else {
-    el("btn-login").classList.remove("hidden");
-    el("btn-logout").classList.add("hidden");
-    userDocRef = null;
-    Object.assign(state, JSON.parse(localStorage.getItem("taskforge_save") || "null") || structuredClone(DEFAULT_SAVE));
-    render();
-  }
-});
 setInterval(updateStreakTimer, 1000);
 render();
 if ('serviceWorker' in navigator) {
