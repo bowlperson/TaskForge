@@ -103,7 +103,6 @@
                 <label class="text-sm opacity-80">Time Completion</label>
                 <select id="q-time" class="w-full px-3 py-2 rounded bg-slate-800">
                   <option value="1" selected>None (1x)</option>
-                  <option value="0">&lt;1 hr (0x)</option>
                   <option value="1.1">1 hr+ (1.1x)</option>
                   <option value="1.2">4 hrs+ (1.2x)</option>
                   <option value="1.5">12 hrs+ (1.5x)</option>
@@ -132,8 +131,15 @@
                 <label class="text-sm opacity-80">Due</label>
                 <input id="q-due" type="datetime-local" class="w-full px-3 py-2 rounded bg-slate-800" />
               </div>
-              <div class="sm:col-span-2 md:col-span-7 flex items-center gap-4">
+              <div class="sm:col-span-2 md:col-span-7 flex items-center gap-4 flex-wrap">
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="q-repeat" class="rounded"> Repeatable</label>
+                <select id="q-repeat-freq" class="px-2 py-1 rounded bg-slate-800 hidden text-sm">
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="infinite">Infinite</option>
+                </select>
+                <label id="q-repeat-limit-wrap" class="flex items-center gap-1 text-xs hidden"> <input type="checkbox" id="q-repeat-limit-enable" class="rounded"> End After <input type="number" id="q-repeat-limit" class="w-14 px-1 py-0.5 rounded bg-slate-800" min="1" disabled> </label>
                 <span id="q-anti" class="text-sm cursor-pointer text-rose-400">Anti Quest</span>
               </div>
               <div class="md:col-span-7 sm:col-span-2">
@@ -182,6 +188,16 @@
               <div>
                 <label class="text-sm opacity-80">Image</label>
                 <input id="shop-img" type="file" accept="image/png" class="w-full text-sm" />
+              </div>
+              <div>
+                <label class="text-sm opacity-80">Audio</label>
+                <select id="shop-audio" class="w-full px-3 py-2 rounded bg-slate-800">
+                  <option value="Sound Effects/Drinking.mp3">Drinking</option>
+                  <option value="Sound Effects/Eating.mp3">Eating</option>
+                  <option value="Sound Effects/Consume.mp3">Consume</option>
+                  <option value="custom">Upload...</option>
+                </select>
+                <input id="shop-audio-file" type="file" accept="audio/mpeg" class="w-full text-sm mt-1 hidden" />
               </div>
               <div class="sm:col-span-2 flex items-center gap-2">
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="shop-rebuy" class="rounded"> Rebuy</label>
@@ -232,8 +248,12 @@
                 <option value="rose">Rose</option>
                 <option value="amber">Amber</option>
               </select>
+              <label class="block mb-2 text-sm">Quest Reset Hour</label>
+              <input id="dev-reset-hour" type="number" min="0" max="23" class="w-full px-3 py-2 rounded bg-slate-800 mb-4" />
               <h4 class="font-semibold mb-2">Titles</h4>
               <div id="dev-titles" class="space-y-2"></div>
+              <h4 class="font-semibold mb-2 mt-4">Items</h4>
+              <div id="dev-items" class="space-y-2"></div>
             </div>
             <div class="mb-4">
               <h3 class="font-semibold mb-2">Danger Zone</h3>
@@ -315,10 +335,35 @@ const DEFAULT_SAVE = {
   log: [],
   tags: [],
   skills: DEFAULT_SKILLS,
-  shop: [],
+  shop: [
+    {
+      id: "potion-frost",
+      title: "Potion of Frost",
+      desc: "Freeze Streak Timer for 24 Hours",
+      cost: 300,
+      img: "Sprites/Potion of Frost.png",
+      rebuy: true,
+      locked: true,
+      effect: "freeze24",
+      audio: "Sound Effects/Drinking.mp3",
+      consumable: true
+    },
+    {
+      id: "potion-time-slow",
+      title: "Potion of Time Slow",
+      desc: "Streak Timer is Frozen for 72 Hours",
+      cost: 700,
+      img: "Sprites/Potion of Time Slow.png",
+      rebuy: true,
+      locked: true,
+      effect: "freeze72",
+      audio: "Sound Effects/Drinking.mp3",
+      consumable: true
+    }
+  ],
   inventory: [],
-  streak: { count: 0, last: 0 },
-  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} }
+  streak: { count: 0, last: 0, freeze: 0 },
+  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, resetHour: 1 }
 };
 const el = id => document.getElementById(id);
 const state =
@@ -335,12 +380,24 @@ state.skills.forEach(s => { if (state.player.skills[s.name] === undefined) state
 if (state.player.prestige === undefined) state.player.prestige = 0;
 if (state.player.gold === undefined) state.player.gold = 0;
 if (!state.shop) state.shop = [];
+DEFAULT_SAVE.shop.forEach(def => {
+  const existing = state.shop.find(s => s.id === def.id);
+  if (!existing) state.shop.push(structuredClone(def));
+  else {
+    if (existing.audio === undefined) existing.audio = def.audio;
+    if (existing.consumable === undefined) existing.consumable = def.consumable;
+    if (existing.locked === undefined) existing.locked = def.locked;
+  }
+});
 if (!state.inventory) state.inventory = [];
-if (!state.streak) state.streak = { count: 0, last: 0 };
-if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} };
+state.inventory.forEach(it => { if (it.audio === undefined) it.audio = null; });
+if (!state.streak) state.streak = { count: 0, last: 0, freeze: 0 };
+if (state.streak.freeze === undefined) state.streak.freeze = 0;
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, resetHour: 1 };
 if (state.settings.volume === undefined) state.settings.volume = 1;
 if (!state.settings.theme) state.settings.theme = "default";
 if (!state.settings.titles) state.settings.titles = {};
+if (state.settings.resetHour === undefined) state.settings.resetHour = 1;
 state.quests.forEach(q => {
   if (q.stat && !q.stats) {
     q.stats = q.stat ? [q.stat] : [];
@@ -353,6 +410,11 @@ state.quests.forEach(q => {
   if (q.stats && q.stats.length && typeof q.stats[0] === "string") {
     q.stats = q.stats.map(s => ({ name: s, mult: 1 }));
   }
+  if (q.repeat && !q.repeatFreq) q.repeatFreq = "daily";
+  if (q.repeatLimit === undefined) q.repeatLimit = null;
+  if (q.repeatCount === undefined) q.repeatCount = 0;
+  if (q.inactive === undefined) q.inactive = false;
+  if (q.nextAvailable === undefined) q.nextAvailable = 0;
 });
 state.log.forEach(l => {
   if (l.stat && !l.stats) {
@@ -362,9 +424,10 @@ state.log.forEach(l => {
     l.skills = l.skill ? [{ name: l.skill, points: l.skillPoints }] : [];
   }
 });
-if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000) {
+if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000 + (state.streak.freeze || 0)) {
   state.streak.count = 0;
   state.streak.last = 0;
+  state.streak.freeze = 0;
 }
 let statsChart = null;
 let editingId = null;
@@ -488,13 +551,28 @@ function itemModal(item, idx) {
   el("modal-cancel").onclick = closeModal;
   if (item.consumable) {
     el("modal-use").onclick = () => {
+      applyItemEffect(item);
       state.inventory.splice(idx, 1);
       save();
       render();
-      goldSound.play();
+       playItemAudio(item);
       closeModal();
     };
   }
+}
+function applyItemEffect(item) {
+  if (item.effect === "freeze24") {
+    state.streak.freeze += 24 * 60 * 60 * 1000;
+  } else if (item.effect === "freeze72") {
+    state.streak.freeze += 72 * 60 * 60 * 1000;
+  }
+}
+
+function playItemAudio(item) {
+  const src = item.audio || "Sound Effects/Consume.mp3";
+  const snd = new Audio(src);
+  snd.volume = state.settings.volume;
+  snd.play();
 }
 const TITLE_TIERS = [
   { level: 400, title: "Mortal Savant" },
@@ -581,15 +659,28 @@ function completeQuest(id) {
   if (idx === -1) return;
   const q = state.quests[idx];
   const gold = goldForDiff(q.diff);
-  const stBase = Math.floor(Math.abs(q.xp) / 300);
-  const spBase = Math.abs(q.xp) / 30;
+  let xpVal = q.xp;
+  let penalty = 0;
+  if (q.due) {
+    const overdue = completedAt - new Date(q.due).getTime();
+    if (overdue > 0) {
+      penalty = 0.3 + 0.05 * Math.floor(overdue / 86400000);
+      if (penalty >= 1) {
+        q.inactive = true;
+        penalty = 1;
+      }
+      xpVal = Math.round(q.xp * (1 - penalty));
+    }
+  }
+  const stBase = Math.floor(Math.abs(xpVal) / 300);
+  const spBase = Math.abs(xpVal) / 30;
   if (currentLvlSound) {
     currentLvlSound.pause();
     currentLvlSound.currentTime = 0;
     currentLvlSound = null;
   }
   const levelBefore = state.player.level;
-  addXP(q.xp);
+  addXP(xpVal);
   const statEntries = [];
   if (q.stats && q.stats.length) {
     q.stats.forEach(st => {
@@ -619,7 +710,7 @@ function completeQuest(id) {
     id: crypto.randomUUID(),
     questId: q.id,
     title: q.title,
-    xp: q.xp,
+    xp: xpVal,
     diff: q.diff,
     time: q.time,
     stats: statEntries,
@@ -635,12 +726,44 @@ function completeQuest(id) {
   state.log.push(logEntry);
   if (state.log.length > 200) state.log.shift();
   if (!q.repeat) state.quests.splice(idx, 1);
-  if (!state.streak.last || completedAt - state.streak.last > 30 * 60 * 60 * 1000) {
+  const streakLimit = 30 * 60 * 60 * 1000 + (state.streak.freeze || 0);
+  if (!state.streak.last || completedAt - state.streak.last > streakLimit) {
     state.streak.count = 1;
   } else if (new Date(completedAt).toDateString() !== new Date(state.streak.last).toDateString()) {
     state.streak.count++;
   }
   state.streak.last = completedAt;
+  state.streak.freeze = 0;
+  if (q.repeat && !q.inactive) {
+    q.repeatCount = (q.repeatCount || 0) + 1;
+    if (q.repeatLimit && q.repeatCount >= q.repeatLimit) {
+      q.inactive = true;
+    } else if (q.due) {
+      let due = new Date(q.due);
+      if (q.repeatFreq === "daily") {
+        due = new Date(completedAt);
+        due.setDate(due.getDate() + 1);
+      } else if (q.repeatFreq === "weekly") {
+        due.setDate(due.getDate() + 7);
+      } else if (q.repeatFreq === "monthly") {
+        const day = due.getDate();
+        due.setMonth(due.getMonth() + 1);
+        if (due.getDate() < day) {
+          due.setDate(0);
+        }
+      }
+      if (q.repeatFreq !== "infinite") {
+        q.due = due.toISOString().slice(0,16);
+        const avail = new Date(q.due);
+        avail.setHours(state.settings.resetHour || 1,0,0,0);
+        q.nextAvailable = avail.getTime();
+      } else {
+        q.nextAvailable = 0;
+      }
+    }
+  } else {
+    q.nextAvailable = 0;
+  }
   save();
   render();
   const levelAfter = state.player.level;
@@ -674,10 +797,11 @@ function updateStreakTimer() {
     el("streak-timer").textContent = "";
     return;
   }
-  const diff = state.streak.last + 30 * 60 * 60 * 1000 - Date.now();
+  const diff = state.streak.last + 30 * 60 * 60 * 1000 + (state.streak.freeze || 0) - Date.now();
   if (diff <= 0) {
     state.streak.count = 0;
     state.streak.last = 0;
+    state.streak.freeze = 0;
     save();
     render();
     el("streak-timer").textContent = "";
@@ -803,6 +927,75 @@ function renderDevTitles() {
   list.querySelectorAll(".dev-title-undo").forEach(btn => btn.onclick = () => { delete state.settings.titles[btn.dataset.key]; save(); render(); });
 }
 
+function renderDevItems() {
+  const list = el("dev-items");
+  if (!list) return;
+  list.innerHTML = "";
+  state.shop
+    .filter(i => i.locked)
+    .forEach(item => {
+      const def = DEFAULT_SAVE.shop.find(d => d.id === item.id) || {};
+      const changed = item.img !== def.img || item.audio !== def.audio;
+      const div = document.createElement("div");
+      div.className = "flex items-center gap-2";
+      div.innerHTML = `<img src="${item.img}" class="w-8 h-8 object-contain"/><span class="flex-1">${item.title}</span><button class=\"px-2 py-1 text-xs rounded bg-slate-700 dev-item-edit\" data-id="${item.id}">Edit</button><button class=\"px-2 py-1 text-xs rounded bg-rose-700 dev-item-undo ${changed ? '' : 'hidden'}\" data-id="${item.id}">Undo</button>`;
+      list.appendChild(div);
+    });
+  list.querySelectorAll(".dev-item-edit").forEach(btn => btn.onclick = () => editItemAsset(btn.dataset.id));
+  list.querySelectorAll(".dev-item-undo").forEach(btn => btn.onclick = () => {
+    const def = DEFAULT_SAVE.shop.find(d => d.id === btn.dataset.id);
+    const it = state.shop.find(s => s.id === btn.dataset.id);
+    if (def && it) {
+      it.img = def.img;
+      it.audio = def.audio;
+      save();
+      render();
+    }
+  });
+}
+
+function editItemAsset(id) {
+  const item = state.shop.find(i => i.id === id);
+  if (!item) return;
+  const div = document.createElement("div");
+  div.innerHTML = `<label class="block mb-2">PNG</label>
+    <input id="modal-item-img" type="file" accept="image/png" class="w-full mb-2" />
+    ${item.consumable ? '<label class="block mb-2">Audio</label><input id="modal-item-audio" type="file" accept="audio/mpeg" class="w-full mb-4" />' : '<div class="mb-4"></div>'}
+    <div class="text-right space-x-2">
+      <button id="modal-cancel" class="px-3 py-1 rounded bg-slate-700">Cancel</button>
+      <button id="modal-ok" class="px-3 py-1 rounded bg-emerald-700">Save</button>
+    </div>`;
+  showModal(div);
+  el("modal-ok").onclick = () => {
+    const imgFile = el("modal-item-img").files[0];
+    const audioFile = el("modal-item-audio")?.files[0];
+    const finishImg = imgData => {
+      const finishAudio = audioData => {
+        if (imgData) item.img = imgData;
+        if (audioData) item.audio = audioData;
+        save();
+        render();
+        closeModal();
+      };
+      if (audioFile) {
+        const r2 = new FileReader();
+        r2.onload = () => finishAudio(r2.result);
+        r2.readAsDataURL(audioFile);
+      } else {
+        finishAudio(null);
+      }
+    };
+    if (imgFile) {
+      const r1 = new FileReader();
+      r1.onload = () => finishImg(r1.result);
+      r1.readAsDataURL(imgFile);
+    } else {
+      finishImg(null);
+    }
+  };
+  el("modal-cancel").onclick = closeModal;
+}
+
 function editTitle(key) {
   const custom = state.settings.titles[key] || { name: key, img: "" };
   const div = document.createElement("div");
@@ -918,6 +1111,13 @@ function startEdit(id) {
   el("q-tag").value = q.tag || "";
   el("q-due").value = q.due || "";
   el("q-repeat").checked = q.repeat || false;
+  el("q-repeat-freq").classList.toggle("hidden", !q.repeat);
+  el("q-repeat-freq").value = q.repeatFreq || "daily";
+  const hasLimit = q.repeatLimit != null && q.repeatLimit !== undefined;
+  el("q-repeat-limit-wrap").classList.toggle("hidden", !q.repeat);
+  el("q-repeat-limit-enable").checked = hasLimit;
+  el("q-repeat-limit").disabled = !hasLimit;
+  el("q-repeat-limit").value = hasLimit ? q.repeatLimit : "";
   el("q-notes").value = q.notes || "";
   el("q-anti").classList.toggle("font-bold", antiQuest);
 }
@@ -978,8 +1178,10 @@ function startEdit(id) {
     el("audio-section").classList.toggle("hidden", state.settings.audioCollapsed);
     el("audio-toggle-symbol").textContent = state.settings.audioCollapsed ? "+" : "-";
     el("dev-theme").value = state.settings.theme || "default";
+    el("dev-reset-hour").value = state.settings.resetHour;
     applyTheme();
     renderDevTitles();
+    renderDevItems();
     el("q-stats").innerHTML = "";
     addStatRow();
     el("q-stat-adjust").checked = false;
@@ -1000,14 +1202,27 @@ function startEdit(id) {
   if (state.quests.length === 0) {
     qlist.innerHTML = '<div class="text-sm opacity-70">No quests yet.</div>';
   } else {
+    const now = Date.now();
+    let saveNeeded = false;
     state.quests
       .slice()
       .sort((a, b) => {
+        if (a.inactive !== b.inactive) return a.inactive - b.inactive;
         const ta = state.tags.find(t => t.id === a.tag)?.priority ?? Infinity;
         const tb = state.tags.find(t => t.id === b.tag)?.priority ?? Infinity;
         return ta - tb;
       })
       .forEach(q => {
+      if (q.due) {
+        const overdue = now - new Date(q.due).getTime();
+        if (overdue > 0) {
+          const pen = 0.3 + 0.05 * Math.floor(overdue / 86400000);
+          if (pen >= 1 && !q.inactive) {
+            q.inactive = true;
+            save();
+          }
+        }
+      }
       const node = el("tpl-quest").content.cloneNode(true);
       node.querySelector(".q-title").textContent = q.title;
       node.querySelector(".q-xp").textContent = q.xp >= 0 ? `+${q.xp}` : q.xp;
@@ -1035,18 +1250,41 @@ function startEdit(id) {
       if (q.anti) {
         node.querySelector(".q-card").classList.add("bg-rose-900");
       }
-      if (q.due) {
-        const d = new Date(q.due);
-        node.querySelector(".q-due").textContent = `Due: ${d.toLocaleString()}`;
+      const completeBtn = node.querySelector(".q-complete");
+      const card = node.querySelector(".q-card");
+      if (!q.inactive && q.repeat && q.nextAvailable && now < q.nextAvailable) {
+        const diff = q.nextAvailable - now;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        node.querySelector(".q-due").textContent = `Available in ${h}h ${m}m`;
+        card.classList.add("opacity-50");
+        completeBtn.disabled = true;
+        completeBtn.classList.add("bg-slate-700", "hover:bg-slate-700");
       } else {
-        node.querySelector(".q-due").classList.add("hidden");
+        if (q.nextAvailable && now >= q.nextAvailable) {
+          q.nextAvailable = 0;
+          saveNeeded = true;
+        }
+        if (q.due) {
+          const d = new Date(q.due);
+          node.querySelector(".q-due").textContent = `Due: ${d.toLocaleString()}`;
+        } else {
+          node.querySelector(".q-due").classList.add("hidden");
+        }
+        if (q.inactive) {
+          card.classList.add("opacity-50");
+          completeBtn.disabled = true;
+          completeBtn.classList.add("bg-slate-700", "hover:bg-slate-700");
+        } else {
+          completeBtn.onclick = () => confirmQuest(q.id);
+        }
       }
-      node.querySelector(".q-complete").onclick = () => confirmQuest(q.id);
       node.querySelector(".q-delete").onclick = () => deleteQuest(q.id);
       node.querySelector(".q-edit").onclick = () => startEdit(q.id);
       node.querySelector(".q-notes").textContent = q.notes;
       qlist.appendChild(node);
     });
+    if (saveNeeded) save();
   }
   const statsList = el("stats-list");
   statsList.innerHTML =
@@ -1126,12 +1364,12 @@ function startEdit(id) {
     state.shop.forEach(item => {
       const div = document.createElement("div");
       div.className = "flex items-center gap-3 p-3 rounded bg-slate-800";
-      div.innerHTML = `<img src="${item.img}" class=\"w-12 h-12 object-contain\"/><div class=\"flex-1\"><div class=\"font-semibold\">${item.title}</div><div class=\"text-xs opacity-70\">${item.cost}g</div></div><button class=\"buy px-2 py-1 text-xs rounded bg-emerald-700 hover:bg-emerald-600\">Buy</button><span class=\"edit text-xs text-sky-400 cursor-pointer ml-2\">edit</span>`;
+      div.innerHTML = `<img src="${item.img}" class=\"w-12 h-12 object-contain\"/><div class=\"flex-1\"><div class=\"font-semibold\">${item.title}</div><div class=\"text-xs opacity-70\">${item.cost}g</div></div><button class=\"buy px-2 py-1 text-xs rounded bg-emerald-700 hover:bg-emerald-600\">Buy</button>${item.locked ? '' : '<span class=\"edit text-xs text-sky-400 cursor-pointer ml-2\">edit</span>'}`;
       div.querySelector(".buy").onclick = () => {
         confirmModal(`Buy <strong>${item.title}</strong> for ${item.cost} gold?`, () => {
           if (state.player.gold >= item.cost) {
             state.player.gold -= item.cost;
-            state.inventory.push({ id: crypto.randomUUID(), title: item.title, desc: item.desc, img: item.img, consumable: true });
+            state.inventory.push({ id: crypto.randomUUID(), title: item.title, desc: item.desc, img: item.img, consumable: true, effect: item.effect || null, audio: item.audio });
             if (!item.rebuy) state.shop = state.shop.filter(s => s.id !== item.id);
             save();
             render();
@@ -1141,14 +1379,18 @@ function startEdit(id) {
           }
         });
       };
-      div.querySelector(".edit").onclick = () => {
-        editingShopId = item.id;
-        el("shop-title").value = item.title;
-        el("shop-desc").value = item.desc;
-        el("shop-cost").value = item.cost;
-        el("shop-rebuy").checked = item.rebuy;
-        el("shop-form").classList.remove("hidden");
-      };
+      if (!item.locked) {
+        div.querySelector(".edit").onclick = () => {
+          editingShopId = item.id;
+          el("shop-title").value = item.title;
+          el("shop-desc").value = item.desc;
+          el("shop-cost").value = item.cost;
+          el("shop-rebuy").checked = item.rebuy;
+          el("shop-audio").value = ["Sound Effects/Drinking.mp3","Sound Effects/Eating.mp3","Sound Effects/Consume.mp3"].includes(item.audio) ? item.audio : "custom";
+          el("shop-audio-file").classList.toggle("hidden", el("shop-audio").value !== "custom");
+          el("shop-form").classList.remove("hidden");
+        };
+      }
       shopList.appendChild(div);
     });
   }
@@ -1176,10 +1418,11 @@ function startEdit(id) {
         btn.onclick = e => {
           e.stopPropagation();
           confirmModal(`Consume <strong>${item.title}</strong>?`, () => {
+            applyItemEffect(item);
             state.inventory.splice(idx, 1);
             save();
             render();
-            goldSound.play();
+            playItemAudio(item);
           });
         };
         div.appendChild(btn);
@@ -1248,6 +1491,12 @@ el("btn-show-form").onclick = () => {
   el("q-stat-adjust").checked = false;
   document.querySelectorAll(".q-stat").forEach(populateStatOptions);
   document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+  el("q-repeat").checked = false;
+  el("q-repeat-freq").classList.add("hidden");
+  el("q-repeat-limit-wrap").classList.add("hidden");
+  el("q-repeat-limit-enable").checked = false;
+  el("q-repeat-limit").value = "";
+  el("q-repeat-limit").disabled = true;
   el("quest-form").classList.toggle("hidden");
 };
 el("quest-form").onsubmit = e => {
@@ -1283,16 +1532,40 @@ el("quest-form").onsubmit = e => {
     tag: el("q-tag").value || "",
     due: el("q-due").value || "",
     repeat: el("q-repeat").checked,
+    repeatFreq: el("q-repeat").checked ? el("q-repeat-freq").value : "",
+    repeatLimit:
+      el("q-repeat").checked && el("q-repeat-limit-enable").checked
+        ? +el("q-repeat-limit").value || 0
+        : null,
+    repeatCount: editingId
+      ? state.quests.find(q => q.id === editingId)?.repeatCount || 0
+      : 0,
+    inactive: false,
     anti: antiQuest,
     notes: el("q-notes").value
   };
-  const existing = state.quests.findIndex(q => q.id === editingId);
+  const existingQuest = editingId ? state.quests.find(q => q.id === editingId) : null;
+  let nextAvail = existingQuest ? existingQuest.nextAvailable || 0 : 0;
+  if (!q.repeat) {
+    nextAvail = 0;
+  } else if (existingQuest && existingQuest.due !== q.due && q.due) {
+    const d = new Date(q.due);
+    d.setHours(state.settings.resetHour || 1,0,0,0);
+    nextAvail = d.getTime();
+  }
+  q.nextAvailable = nextAvail;
+  const existing = state.quests.findIndex(q2 => q2.id === editingId);
   if (existing !== -1) state.quests[existing] = q; else state.quests.push(q);
   editingId = null;
   antiQuest = false;
   save();
   render();
   el("quest-form").reset();
+  el("q-repeat-freq").classList.add("hidden");
+  el("q-repeat-limit-wrap").classList.add("hidden");
+  el("q-repeat-limit-enable").checked = false;
+  el("q-repeat-limit").value = "";
+  el("q-repeat-limit").disabled = true;
   el("quest-form").classList.add("hidden");
 };
 el("btn-add-skill-row").onclick = () => addSkillRow();
@@ -1305,14 +1578,30 @@ el("q-stat-adjust").onchange = () => {
   const show = el("q-stat-adjust").checked;
   document.querySelectorAll(".q-stat-mult").forEach(i => i.classList.toggle("hidden", !show));
 };
+el("q-repeat").onchange = () => {
+  const show = el("q-repeat").checked;
+  el("q-repeat-freq").classList.toggle("hidden", !show);
+  el("q-repeat-limit-wrap").classList.toggle("hidden", !show);
+};
+el("q-repeat-limit-enable").onchange = () => {
+  el("q-repeat-limit").disabled = !el("q-repeat-limit-enable").checked;
+};
 el("dev-theme").onchange = e => {
   state.settings.theme = e.target.value;
   applyTheme();
   save();
 };
+el("dev-reset-hour").onchange = e => {
+  const val = Math.min(23, Math.max(0, +e.target.value || 0));
+  state.settings.resetHour = val;
+  save();
+  render();
+};
 el("btn-show-shop-form").onclick = () => {
   editingShopId = null;
   el("shop-form").reset();
+  el("shop-audio").value = "Sound Effects/Drinking.mp3";
+  el("shop-audio-file").classList.add("hidden");
   el("shop-form").classList.toggle("hidden");
 };
 el("shop-form").onsubmit = e => {
@@ -1321,26 +1610,53 @@ el("shop-form").onsubmit = e => {
   const desc = el("shop-desc").value || "";
   const cost = +el("shop-cost").value || 0;
   const rebuy = el("shop-rebuy").checked;
-  const file = el("shop-img").files[0];
+  const imgFile = el("shop-img").files[0];
+  const audioSel = el("shop-audio").value;
+  const audioFile = el("shop-audio-file").files[0];
   const id = editingShopId || crypto.randomUUID();
-  const finish = imgData => {
-    const item = { id, title, desc, cost, img: imgData || "", rebuy };
+  const finish = (imgData, audioData) => {
+    const existing = editingShopId ? state.shop.find(s => s.id === editingShopId) : null;
+    const item = {
+      id,
+      title,
+      desc,
+      cost,
+      img: imgData || existing?.img || "",
+      rebuy,
+      locked: existing?.locked || false,
+      effect: existing?.effect || null,
+      audio: audioData || existing?.audio || audioSel,
+      consumable: existing?.consumable !== undefined ? existing.consumable : true
+    };
     const idx = state.shop.findIndex(s => s.id === editingShopId);
     if (idx !== -1) state.shop[idx] = item; else state.shop.push(item);
     editingShopId = null;
     save();
     render();
     el("shop-form").reset();
+    el("shop-audio-file").classList.add("hidden");
     el("shop-form").classList.add("hidden");
   };
-  if (file) {
+  const processAudio = imgData => {
+    if (audioSel === "custom" && audioFile) {
+      const reader = new FileReader();
+      reader.onload = () => finish(imgData, reader.result);
+      reader.readAsDataURL(audioFile);
+    } else {
+      finish(imgData, audioSel === "custom" ? null : audioSel);
+    }
+  };
+  if (imgFile) {
     const reader = new FileReader();
-    reader.onload = () => finish(reader.result);
-    reader.readAsDataURL(file);
+    reader.onload = () => processAudio(reader.result);
+    reader.readAsDataURL(imgFile);
   } else {
-    const existing = editingShopId ? state.shop.find(s => s.id === editingShopId)?.img || "" : "";
-    finish(existing);
+    processAudio(editingShopId ? state.shop.find(s => s.id === editingShopId)?.img || "" : "");
   }
+};
+
+el("shop-audio").onchange = () => {
+  el("shop-audio-file").classList.toggle("hidden", el("shop-audio").value !== "custom");
 };
 el("btn-clear-done").onclick = () => {
   state.quests = [];
@@ -1433,6 +1749,7 @@ el("q-anti").onclick = () => {
   el("q-anti").classList.toggle("font-bold", antiQuest);
 };
 setInterval(updateStreakTimer, 1000);
+setInterval(render, 60000);
 render();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js');
