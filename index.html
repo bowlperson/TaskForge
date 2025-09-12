@@ -72,6 +72,7 @@
               <button id="btn-open-shop" class="w-full text-left font-semibold hover:text-sky-300">Shop</button>
               <button id="btn-open-inventory" class="w-full text-left font-semibold hover:text-sky-300">Inventory</button>
               <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Audit Log</button>
+              <button id="btn-open-dungeon" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Dungeon</button>
             </div>
             </div>
         </div>
@@ -100,10 +101,9 @@
                 </select>
               </div>
               <div>
-                <label class="text-sm opacity-80">Time Completion</label>
-                <select id="q-time" class="w-full px-3 py-2 rounded bg-slate-800">
+              <label class="text-sm opacity-80">Time Completion</label>
+              <select id="q-time" class="w-full px-3 py-2 rounded bg-slate-800">
                   <option value="1" selected>None (1x)</option>
-                  <option value="0">&lt;1 hr (0x)</option>
                   <option value="1.1">1 hr+ (1.1x)</option>
                   <option value="1.2">4 hrs+ (1.2x)</option>
                   <option value="1.5">12 hrs+ (1.5x)</option>
@@ -197,6 +197,16 @@
             <div id="inventory-list" class="grid grid-cols-3 gap-2"></div>
           </div>
           <div id="view-log" class="hidden"><h2 class="text-xl font-semibold mb-3">Audit Log</h2><div id="log-list"></div></div>
+          <div id="view-dungeon" class="hidden">
+            <h2 class="text-xl font-semibold mb-3">Dungeon</h2>
+            <div id="dungeon-stats" class="text-sm mb-3">
+              Highest Dungeon Run: <span id="dungeon-highest">0</span> Monster(s) Defeated<br/>
+              Current Run: <span id="dungeon-current">0</span> Monster(s) Defeated
+            </div>
+            <div id="dungeon-monster" class="mb-4 text-center"></div>
+            <div id="dungeon-quests" class="mb-4"></div>
+            <div id="dungeon-log" class="text-xs space-y-1"></div>
+          </div>
           <div id="view-settings" class="hidden">
             <h2 class="text-xl font-semibold mb-3">Settings</h2>
             <div class="mb-4">
@@ -234,6 +244,10 @@
               </select>
               <h4 class="font-semibold mb-2">Titles</h4>
               <div id="dev-titles" class="space-y-2"></div>
+              <h4 class="font-semibold mb-2 mt-4">Assets</h4>
+              <div id="dev-monsters" class="space-y-2 mb-2"></div>
+              <label class="block mb-1 text-sm">Default Shop Item Image</label>
+              <input id="dev-shop-img" type="file" accept="image/png" class="w-full text-sm mb-4"/>
             </div>
             <div class="mb-4">
               <h3 class="font-semibold mb-2">Danger Zone</h3>
@@ -318,7 +332,8 @@ const DEFAULT_SAVE = {
   shop: [],
   inventory: [],
   streak: { count: 0, last: 0 },
-  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} }
+  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "" },
+  dungeon: { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], lastDefeat: 0 }
 };
 const el = id => document.getElementById(id);
 const state =
@@ -337,10 +352,13 @@ if (state.player.gold === undefined) state.player.gold = 0;
 if (!state.shop) state.shop = [];
 if (!state.inventory) state.inventory = [];
 if (!state.streak) state.streak = { count: 0, last: 0 };
-if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {} };
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "" };
 if (state.settings.volume === undefined) state.settings.volume = 1;
 if (!state.settings.theme) state.settings.theme = "default";
 if (!state.settings.titles) state.settings.titles = {};
+if (!state.settings.monsterImages) state.settings.monsterImages = {};
+if (state.settings.defaultShopImg === undefined) state.settings.defaultShopImg = "";
+if (!state.dungeon) state.dungeon = { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], lastDefeat: 0 };
 state.quests.forEach(q => {
   if (q.stat && !q.stats) {
     q.stats = q.stat ? [q.stat] : [];
@@ -375,9 +393,11 @@ const levelSounds = [
   new Audio("Sound Effects/lvlupfallout.mp3"),
   new Audio("Sound Effects/lvlupskyrim.mp3")
 ];
+const attackSound = new Audio("Sound Effects/Attack.mp3");
 let currentLvlSound = null;
 goldSound.volume = state.settings.volume;
 levelSounds.forEach(s => (s.volume = state.settings.volume));
+attackSound.volume = state.settings.volume;
 
 function showModal(content) {
   const box = el("modal-box");
@@ -496,6 +516,157 @@ function itemModal(item, idx) {
     };
   }
 }
+function spawnMonster() {
+  const r = Math.random();
+  let tier;
+  if (r < 0.6) tier = 1;
+  else if (r < 0.85) tier = 2;
+  else if (r < 0.95) tier = 3;
+  else tier = 4;
+  const list = MONSTERS.filter(m => m.tier === tier);
+  const template = list[rand(0, list.length - 1)];
+  const base = monsterBaseHP(tier);
+  const hp = Math.round(base * (0.7 + Math.random() * 0.6));
+  const img =
+    state.settings.monsterImages[template.name] ||
+    `Sprites/${template.name}.png`;
+  state.dungeon.current = {
+    name: template.name,
+    tier,
+    weak: template.weak,
+    resist: template.resist,
+    ability: template.ability,
+    hp,
+    maxHp: hp,
+    img,
+    spawn: Date.now()
+  };
+  state.dungeon.chat = [];
+  state.dungeon.usedLogs = [];
+  save();
+  renderDungeon();
+}
+function attackDungeon(logId) {
+  const log = state.log.find(l => l.id === logId);
+  const m = state.dungeon.current;
+  if (!log || !m) return;
+  let dmg = log.xp / 100;
+  let bonus = 0;
+  const weakHit =
+    log.skills.some(sk => m.weak.includes(sk.name)) ||
+    log.stats.some(st => m.weak.includes(st.name));
+  log.skills.forEach(sk => {
+    if (m.weak.includes(sk.name)) bonus += state.player.skills[sk.name] || 0;
+    if (m.resist.includes(sk.name)) dmg *= 0.85;
+    if (m.weak.includes(sk.name)) dmg *= 1.15;
+  });
+  log.stats.forEach(st => {
+    if (m.weak.includes(st.name)) bonus += state.player.mainstats[st.name] || 0;
+    if (m.resist.includes(st.name)) dmg *= 0.85;
+    if (m.weak.includes(st.name)) dmg *= 1.15;
+  });
+  dmg += bonus;
+  let crit = 0;
+  if (weakHit && Math.random() < 0.1) {
+    crit = dmg;
+    dmg *= 2;
+  }
+  if (m.ability === "heal5" && Math.random() < 0.05) {
+    m.hp = Math.min(m.maxHp, m.hp + Math.floor(dmg));
+    state.dungeon.chat.push(`${state.player.name} attacks! result: ${log.xp} XP base, damage -${Math.floor(dmg)} (crit ${Math.floor(crit)}) HP ${m.hp}/${m.maxHp}`);
+  } else {
+    m.hp = Math.max(0, m.hp - Math.floor(dmg));
+    state.dungeon.chat.push(`${state.player.name} attacks! result: ${log.xp} XP base, damage ${Math.floor(dmg)} (crit ${Math.floor(crit)}) HP ${m.hp}/${m.maxHp}`);
+  }
+  attackSound.play();
+  state.dungeon.usedLogs.push(logId);
+  if (m.hp <= 0) {
+    state.dungeon.chat.push(`${m.name} defeated!`);
+    state.dungeon.currentRun++;
+    if (state.dungeon.currentRun > state.dungeon.highestRun)
+      state.dungeon.highestRun = state.dungeon.currentRun;
+    state.dungeon.current = null;
+    state.dungeon.lastDefeat = Date.now();
+  }
+  save();
+  renderDungeon();
+}
+function renderDungeon() {
+  if (!state.dungeon) return;
+  const d = state.dungeon;
+  if (d.current && Date.now() - d.current.spawn > 30 * 24 * 60 * 60 * 1000) {
+    d.current = null;
+  }
+  el("dungeon-highest").textContent = d.highestRun || 0;
+  el("dungeon-current").textContent = d.currentRun || 0;
+  const mDiv = el("dungeon-monster");
+  mDiv.innerHTML = "";
+  if (!d.current) {
+    if (d.lastDefeat && Date.now() - d.lastDefeat < 24 * 60 * 60 * 1000) {
+      const hours = Math.ceil(
+        (24 * 60 * 60 * 1000 - (Date.now() - d.lastDefeat)) / 3600000
+      );
+      mDiv.innerHTML = `<div class="text-sm">A new monster will appear in ${hours}h.</div>`;
+    } else {
+      const btn = document.createElement("button");
+      btn.id = "btn-enter-dungeon";
+      btn.className =
+        "px-4 py-2 rounded bg-sky-700 hover:bg-sky-600";
+      btn.textContent = "Enter Dungeon";
+      btn.onclick = () =>
+        confirmModal("Enter the dungeon?", spawnMonster);
+      mDiv.appendChild(btn);
+    }
+  } else {
+    const m = d.current;
+    mDiv.innerHTML = `<img src="${m.img}" class="w-32 h-32 object-contain mx-auto mb-2"/><div class="font-semibold">${m.name}</div><div class="text-xs mb-2">${m.weak.length ? "+" + m.weak.join("/") + " " : ""}${m.resist.length ? "&darr;" + m.resist.join("/") : ""}</div><div class="w-full bg-slate-800 h-3 rounded mb-1"><div class="bg-rose-700 h-3 rounded" style="width:${(m.hp / m.maxHp) * 100}%"></div></div><div class="text-sm mb-2">HP: ${m.hp}/${m.maxHp}</div>`;
+  }
+  const qDiv = el("dungeon-quests");
+  qDiv.innerHTML = "<h3 class=\"font-semibold mb-2\">Completed Quests</h3>";
+  const quests = state.log
+    .slice()
+    .reverse()
+    .filter(l => !d.usedLogs.includes(l.id))
+    .slice(0, 5);
+  if (quests.length === 0) {
+    qDiv.innerHTML +=
+      '<div class="text-xs opacity-70">No recent quests.</div>';
+  } else {
+    quests.forEach(l => {
+      const row = document.createElement("div");
+      row.className =
+        "flex justify-between items-center text-sm mb-1";
+      row.innerHTML = `<span>${l.title} (${l.xp} XP)</span><button class="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600">Attack</button>`;
+      row
+        .querySelector("button")
+        .onclick = () => attackDungeon(l.id);
+      qDiv.appendChild(row);
+    });
+  }
+  const logDiv = el("dungeon-log");
+  logDiv.innerHTML = d.chat.map(c => `<div>${c}</div>`).join("");
+}
+function renderDevMonsters() {
+  const container = el("dev-monsters");
+  container.innerHTML = "";
+  MONSTERS.forEach(m => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `<label class=\"block text-sm\">${m.name}</label><input type=\"file\" data-monster=\"${m.name}\" accept=\"image/png\" class=\"w-full text-sm\"/>`;
+    const input = wrapper.querySelector("input");
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.settings.monsterImages[m.name] = reader.result;
+        save();
+        renderDungeon();
+      };
+      reader.readAsDataURL(file);
+    };
+    container.appendChild(wrapper);
+  });
+}
 const TITLE_TIERS = [
   { level: 400, title: "Mortal Savant" },
   { level: 350, title: "FalconKnight" },
@@ -524,6 +695,31 @@ const STREAK_TIERS = [
 function getStreakTier(days) {
   return STREAK_TIERS.find(t => days >= t.days) || null;
 }
+const MONSTERS = [
+  { name: "Clair Obscur", tier: 4, weak: ["Reading", "Strategy"], resist: ["Mindfulness"], ability: "heal5" },
+  { name: "Red Eyes Black Dragon", tier: 4, weak: ["Strength", "Fitness"], resist: ["Vitality"] },
+  { name: "Golem", tier: 3, weak: ["Dexterity"], resist: ["Constitution"] },
+  { name: "Grand Mimic", tier: 3, weak: ["Reading"], resist: ["Strength", "Constitution"] },
+  { name: "Mythic Succubus", tier: 3, weak: ["Cooking", "Charisma"], resist: ["Mindfulness", "Vitality"] },
+  { name: "Necromancer", tier: 3, weak: ["Productivity"], resist: ["Reading", "Charisma"] },
+  { name: "Catacomb Giant Spider", tier: 3, weak: ["Strategy"], resist: ["Dexterity", "Vitality"] },
+  { name: "Cyclops", tier: 2, weak: ["Strength"], resist: ["Strategy"] },
+  { name: "Mimic", tier: 2, weak: ["Strategy", "Reading"], resist: ["Mindfulness"] },
+  { name: "Undead Royal Knight", tier: 2, weak: ["Constitution", "Strategy"], resist: ["Dexterity"] },
+  { name: "Seer", tier: 2, weak: ["Study"], resist: ["Mindfulness", "Charisma"] },
+  { name: "Toxic Evil Spirit", tier: 2, weak: ["Mindfulness"], resist: ["Vitality", "Productivity"] },
+  { name: "Zombie Horde", tier: 2, weak: ["Constitution"], resist: ["Dexterity", "Study"] },
+  { name: "Giant Spider", tier: 2, weak: ["Strategy"], resist: ["Vitality", "Mindfulness"] },
+  { name: "Evil Spirit", tier: 1, weak: ["Study"], resist: ["Mindfulness", "Productivity"] },
+  { name: "Powerful Evil Spirit", tier: 1, weak: ["Study"], resist: ["Mindfulness"] },
+  { name: "Goblin Gang", tier: 1, weak: ["Dexterity", "Cooking"], resist: ["Charisma"] }
+];
+function monsterBaseHP(tier) {
+  if (tier === 1) return 250;
+  if (tier === 2) return 575;
+  if (tier === 3) return 1300;
+  return 3750;
+}
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -546,7 +742,8 @@ function show(view) {
     "view-shop",
     "view-inventory",
     "view-log",
-    "view-settings"
+    "view-settings",
+    "view-dungeon"
   ].forEach(id => el(id).classList.toggle("hidden", id !== view));
 }
   function nextLevelXP() {
@@ -980,6 +1177,8 @@ function startEdit(id) {
     el("dev-theme").value = state.settings.theme || "default";
     applyTheme();
     renderDevTitles();
+    renderDevMonsters();
+    renderDungeon();
     el("q-stats").innerHTML = "";
     addStatRow();
     el("q-stat-adjust").checked = false;
@@ -1235,6 +1434,7 @@ el("btn-open-shop").onclick = () => show("view-shop");
 el("btn-open-inventory").onclick = () => show("view-inventory");
 el("btn-open-log").onclick = () => show("view-log");
 el("btn-open-settings").onclick = () => show("view-settings");
+el("btn-open-dungeon").onclick = () => { show("view-dungeon"); renderDungeon(); };
 el("btn-show-form").onclick = () => {
   editingId = null;
   antiQuest = false;
@@ -1310,6 +1510,16 @@ el("dev-theme").onchange = e => {
   applyTheme();
   save();
 };
+el("dev-shop-img").onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.settings.defaultShopImg = reader.result;
+    save();
+  };
+  reader.readAsDataURL(file);
+};
 el("btn-show-shop-form").onclick = () => {
   editingShopId = null;
   el("shop-form").reset();
@@ -1324,7 +1534,7 @@ el("shop-form").onsubmit = e => {
   const file = el("shop-img").files[0];
   const id = editingShopId || crypto.randomUUID();
   const finish = imgData => {
-    const item = { id, title, desc, cost, img: imgData || "", rebuy };
+    const item = { id, title, desc, cost, img: imgData || state.settings.defaultShopImg || "", rebuy };
     const idx = state.shop.findIndex(s => s.id === editingShopId);
     if (idx !== -1) state.shop[idx] = item; else state.shop.push(item);
     editingShopId = null;
@@ -1338,7 +1548,7 @@ el("shop-form").onsubmit = e => {
     reader.onload = () => finish(reader.result);
     reader.readAsDataURL(file);
   } else {
-    const existing = editingShopId ? state.shop.find(s => s.id === editingShopId)?.img || "" : "";
+    const existing = editingShopId ? state.shop.find(s => s.id === editingShopId)?.img || state.settings.defaultShopImg || "" : state.settings.defaultShopImg || "";
     finish(existing);
   }
 };
@@ -1426,6 +1636,7 @@ el("audio-volume").oninput = e => {
   state.settings.volume = v;
   goldSound.volume = v;
   levelSounds.forEach(s => (s.volume = v));
+  attackSound.volume = v;
   save();
 };
 el("q-anti").onclick = () => {
