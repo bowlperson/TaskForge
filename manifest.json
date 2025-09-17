@@ -6,7 +6,7 @@
   "background_color": "#0ea5e9",
   "theme_color": "#0ea5e9",
   "icons": [
-    { "src": "Sprites/Commoner.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "Sprites/Commoner.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "Sprites/TaskForge.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "Sprites/TaskForge.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
