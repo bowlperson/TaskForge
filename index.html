@@ -130,13 +130,12 @@
               <div>
               <label class="text-sm opacity-80">Time Completion</label>
               <select id="q-time" class="w-full px-3 py-2 rounded bg-slate-800">
-                  <option value="1" selected>None (1x)</option>
-                  <option value="1.1">1 hr+ (1.1x)</option>
-                  <option value="1.2">4 hrs+ (1.2x)</option>
-                  <option value="1.5">12 hrs+ (1.5x)</option>
-                  <option value="1.75">24 hrs+ (1.75x)</option>
-                  <option value="2.25">Week(s)+ (2.25x)</option>
-                  <option value="3.5">Month(s)+ (3.5x)</option>
+                  <option value="1" selected>&gt;30mins (1x)</option>
+                  <option value="1.25">1hr+ (1.25x)</option>
+                  <option value="1.6">2hr+ (1.6x)</option>
+                  <option value="3.5">4hr+ (3.5x)</option>
+                  <option value="7">8hr+ (7x)</option>
+                  <option value="9">Day(s)+ (9x)</option>
                 </select>
               </div>
               <div class="md:col-span-2">
@@ -1341,7 +1340,11 @@ function attackDungeon(logId) {
     critExtra = totalDamage;
     totalDamage *= 2;
   }
-  const lines = [`Dice Roll (d${dieSides}): ${rollHistory.join(" → ")}`];
+  const questTitle = log.title || "Unknown Quest";
+  const lines = [
+    `Quest Used: ${questTitle}`,
+    `Dice Roll (d${dieSides}): ${rollHistory.join(" → ")}`
+  ];
   if (missed) {
     lines.push("Attack Missed!");
     lines.push(`Monster HP: ${m.hp}/${m.maxHp}`);
