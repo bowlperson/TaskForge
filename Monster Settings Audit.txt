@@ -1,0 +1,132 @@
+Monster Settings Audit
+
+Clair Obscur:  Chroma Absorb; 5% chance for player to heal (5% chance to convert damage into health gain.).  Flying; 15% chance for attacks miss him.  Endgame; Only 15 days on Monster Timer
+Base Rewards: 15,000 XP, 2,000 Gold, 
+Drop list and rates
+Item:  Grand Health Potion (Will add 7 days to Dungeon limit when consumed) 100% Drop rate, 
+Item: Scroll of Power (When Consumed Makes Next Quest-Attack  deals 4x damage. Make sure this item adds to Status "Next attack does 4x" and make sure it is removed after attacking) ~ 40% Drop Chance
+Ancient Grimoire. Gain additional 5,000 XP. (not an item. Will just be named in Dungeon chat followed by XP earned. ) ~ 10% Chance
+
+Add Status page. Will show any Buffs and Debuffs. Make sure that Dungeon Chat displays all Rewards after completing monster. ensure monster effects are stated in chat when they occur. 
+
+After the first item explanation, assume all items of the same name have the same effect. Do not add these Items to the Shop.
+
+Attack and Quest-attack is used interchangeably.
+For Each HP point above Base Tier Health,  Add 2XP to Rewards
+For Each HP point below Base Tier Health, Remove 2XP from Rewards
+Do not show this math in Quest Chat. Just show Total XP Earned.
+
+Each Quest that is worth 1000xp or higher gets to roll a 20 sided die. Generate a number between 1-20 and show it as 'Dice Roll'. If it rolls on 1 always miss attack. if it lands on 20, add all damage then at end multiply by 2. Show Extra Damage as 'Critical Hit' on the Dungeon Chat.
+
+ -----
+Red Eyes Black Dragon: Deflective Scales; 15% Chance that users attack is cut in Half. Flying; 15% chance for attacks miss him. Endgame; Only 15 days on Monster Timer
+Base Rewards: 12,000 XP 1,000 Gold
+Drop List and rates:
+Item: Grand Health Potion ~ 100% Drop Chance
+Item: Potion of Focus (Guarantees Next Attack will hit no matter what eff monster has, but Only works for one attack) ~70% Drop Chance. 
+Item: Sword of Night and Flame ( Non Consumable. Updates Status, Now adds flat 50 damage to all quest-attacks)  ~100% (0% after owning)
+-----
+Golem: Rock Armor; A Random Skill and Stat are picked at spawn. Any quest-attacks with those will be nullified completely. Each time Golem Spawns, it will be random but different than last. Will be displayed in dungeon chat which 'elements' he is immune to.
+
+Base Rewards: 7,000 XP  250 Gold
+Drop List and rates:
+Item: Health Potion ( adds 3 days to Monster Timer) ~ 100% Drop Chance
+Item: Golem Core ( Non Consumable, While in inventory, now grants player an auto reroll if they roll a 1. Has three uses before the item breaks and vanishes from inventory. Will show in chat log in the event a reroll was triggered. It will show in Item Description how many uses are left) ~ 60% Drop Chance
+Item: Glowing Jelly (Consume, Next Mission Completed on Quest Page will yield 2x Gold and XP. Update Status page when consuming all item including this one. Just useful for one quest) ~ 30%
+
+-------
+Grand Mimic: Treasure Shield; Can only be damaged by quest containing Reading. Can contain other skills as long as reading is present. Ambush; When Applicable, if dice roll is present, Halve dice number. Round up if not whole. 
+
+Guaranteed Rewards: 7,500 XP  3000 Gold
+
+Drop List and rates:
+
+Item:  Grand Health Potion ~ 100% Drop Chance
+Item: Greeds Amulet ( Non Consumable, While in inventory, adds 5+ base damage per 1000 Gold in possession. always checks for current gold before calculating damage) ~ 20% Chance (If already owned then 0%)
+Item: Lucky Coin (Non Consumable, flip coin during quest-attack. Result is displayed in the Dungeon chat. If Heads multiply damage by 1.5x. If Tails do nothing. Chance for Tails is 70% and 30% for heads due to coins magical property) ~ 5% Drop Chance
+------
+ Mythic Succubus: Demon Aura;  Can only be damaged by quest containing Cooking or Charisma. Can contain other skills as long as Cooking or Charisma is present. Charm; Succubus Rolls a 15 sided die with player, if Dice number is larger Reduces all damage by 75%. Dice shows as "Succubus' Dice:" Followed by the number 'they' rolled.
+
+Guaranteed Rewards: 7,250 XP  300 Gold
+
+Drop List and rates:
+Item: Health Potion  ~100%
+Item: Cat Whiskers ( Non Consumable, Grants additional 5% Crit Chance when Item is in inventory) ~ 15% Drop Chance (0% if owned)
+Item: Cute Possessed Plush Toy (Non Consumable, Changes Crit Damage from 2x to 2.5x)  ~15% (0% if owned)
+Item: Chipotle Burrito Bowl ( Consume and you gain 200+ Cooking. Also Next quest-attack is adds 100 base damage and is Doubled if Charisma or Cooking)
+
+
+Necromancer: Raise Undead; Rolls a 20 Sided die after every 4 Attack-Quests.  Gains 5 HP per each unit rolled. Show roll info and Health restored in Dungeon Chat.
+
+Guaranteed Rewards: 7,250 XP  300 Gold
+Drop List and rates:
+Item: Health Potion  ~50%
+Item: Bone Charm  ( Non Consumable, Grants additional 5% Crit Chance when Item is in inventory) ~ 15% Drop Chance (0% if owned
+Item: Dagger of Souls (Non consumable, when it is in Inventory, add Bleed damage to 
+all quest attacks. When Critical hit is made, calculate 1% of Monsters health and deal that as flat damage to the next 2 attacks. If critical is hit again, reset count. 
+
+-----
+(redo Catacomb Giant Spider Weakness to be  Strategy and Study) 
+Catacomb Giant Spider: Web Snare; Will take half damage by quests containing Strategy or Study. Can contain other skills as long as Strategy or Study is present.
+
+Guaranteed Rewards: 7,000 XP   275 Gold
+  
+Item: Spider Silk (Non Consumable, While in inventory, increases base damage of any quest containing Dexterity by 10%) ~ 20% Drop Chance (0% if already owned)  
+Item: Premium Spider Meat: (Consumable, While in consumed, the next Critical Hit adds an extra flat +300 damage) ~ 10% Drop Chance (0% if already owned)  
+
+-----
+Cyclops: Stone Club; Rolls 6 sided die during attack. whatever number is rolled is the percentage of damage reduced. (floor, no rounding).
+Guaranteed Rewards: 3,500 XP   150 Gold
+Drop List and rates:
+Item: Health Potion ~ 15% Drop Chance
+Item: Cyclopean Tooth (Consumable, Next Quest-Attack deals an extra +50 damage) ~ 20% Drop Chance
+-----
+Mimic: Treasure Bite; If dice roll is present, halve it (round up).
+Guaranteed Rewards: 3,750 XP   175 Gold
+Drop List and rates:
+
+Item: Health Potion ~ 50% Drop Chance
+Item: False Key (Consumable, Sacrifice to Gain 3x damage on next "Reading" Quest) ~ 20% Drop Chance
+
+-----
+Undead Royal Knight
+Rusty Armor; If dice roll is present, reduce result by 1 (minimum 1).
+Item: Knight’s Rusted Emblem (Consumable, Use to deal +200 flat bonus damage on your next Quest-Attack) ~ 15% Drop Chance  
+Guaranteed Rewards: 3,600 XP   150 Gold
+Drop List and rates:
+Item: Health Potion ~ 15% Drop Chance
+-----
+  Seer:   Prophecy’s Gaze; When dice roll is present, display Seer’s roll alongside. If Seer’s number is higher, reduce Quest-Attack damage by 25%  
+
+Guaranteed Rewards: 3,400 XP   125 Gold  
+Item: Health Potion ~ 20% Drop Chance
+Item: Glass Orb Fragment (Consumable, Add +1 to next dice roll result) ~ 20% Drop Chance  
+
+-----
+  Toxic Evil Spirit: Corrosive Aura; If player rolls 3 or lower, Gain 20 HP.  
+
+Guaranteed Rewards: 3,200 XP   100 Gold
+
+  Item: Bottle of Miasma (Consumable, Next 2 Quest-Attacks deal +20 damage)  
+  
+Zombie Horde; Endless Numbers; Dice rolls apply normally, but critical hits deal only 1.5x damage regardless of status'. 
+
+  Giant Spider  
+Guaranteed Rewards: 3,600 XP   150 Gold
+ 
+Item: Sticky Silk Strand (Consumable, Next Quest-Attack deals +20 damage. ) ~ 15% Drop Chance  
+
+-----
+  Evil Spirit  
+
+Guaranteed Rewards: 1,000 XP   75 Gold
+ No Drops  
+
+-----
+  Powerful Evil Spirit; 
+  
+ Guaranteed Rewards: 2,000 XP   90 Gold  
+
+-----
+  Goblin Gang;  
+Guaranteed Rewards: 2,100 XP   100 Gold
