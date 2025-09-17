@@ -42,6 +42,7 @@
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen theme-default">
+  <div class="h-8 md:h-10"></div>
   <div class="max-w-6xl mx-auto p-4 md:p-8">
     <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <h1 class="text-3xl font-bold">TaskForge <span class="text-sky-400">Beta</span></h1>
@@ -1823,10 +1824,16 @@ function deleteTag(id) {
   render();
 }
 
-function populateSkillOptions(sel) {
+function populateSkillOptions(sel, selectedValue) {
+  const previous = selectedValue !== undefined ? selectedValue : sel.value;
   sel.innerHTML =
     '<option value="">None</option>' +
     state.skills.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+  if (previous && Array.from(sel.options).some(opt => opt.value === previous)) {
+    sel.value = previous;
+  } else {
+    sel.value = "";
+  }
 }
 
 function addSkillRow(name = "", mult = 1) {
@@ -1834,8 +1841,7 @@ function addSkillRow(name = "", mult = 1) {
   row.className = "flex gap-2";
   const select = document.createElement("select");
   select.className = "flex-1 px-3 py-2 rounded bg-slate-800 q-skill";
-  populateSkillOptions(select);
-  select.value = name;
+  populateSkillOptions(select, name);
   const input = document.createElement("input");
   input.type = "number";
   input.step = "0.1";
@@ -1848,12 +1854,18 @@ function addSkillRow(name = "", mult = 1) {
   row.appendChild(input);
   el("q-skills").appendChild(row);
 }
-function populateStatOptions(sel) {
+function populateStatOptions(sel, selectedValue) {
+  const previous = selectedValue !== undefined ? selectedValue : sel.value;
   sel.innerHTML =
     '<option value="">None</option>' +
     Object.keys(state.player.mainstats)
       .map(s => `<option value="${s}">${s}</option>`)
       .join("");
+  if (previous && Array.from(sel.options).some(opt => opt.value === previous)) {
+    sel.value = previous;
+  } else {
+    sel.value = "";
+  }
 }
 
 function addStatRow(name = "", mult = 1) {
@@ -1861,8 +1873,7 @@ function addStatRow(name = "", mult = 1) {
   row.className = "flex gap-2";
   const select = document.createElement("select");
   select.className = "flex-1 px-3 py-2 rounded bg-slate-800 q-stat";
-  populateStatOptions(select);
-  select.value = name;
+  populateStatOptions(select, name);
   const input = document.createElement("input");
   input.type = "number";
   input.step = "0.1";
@@ -2020,19 +2031,20 @@ function startEdit(id) {
   if (!q.skills || q.skills.length === 0) addSkillRow();
   el("q-adjust").checked = (q.skills || []).some(s => s.mult !== 1);
   document.querySelectorAll(".q-skill-mult").forEach(i => i.classList.toggle("hidden", !el("q-adjust").checked));
-  document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+  document.querySelectorAll(".q-skill").forEach(sel => populateSkillOptions(sel));
   el("q-stats").innerHTML = "";
   (q.stats || []).forEach(s => addStatRow(s.name, s.mult));
   if (!q.stats || q.stats.length === 0) addStatRow();
   el("q-stat-adjust").checked = (q.stats || []).some(s => s.mult !== 1);
   document.querySelectorAll(".q-stat-mult").forEach(i => i.classList.toggle("hidden", !el("q-stat-adjust").checked));
-  document.querySelectorAll(".q-stat").forEach(populateStatOptions);
+  document.querySelectorAll(".q-stat").forEach(sel => populateStatOptions(sel));
   renderTagSelection(el("q-tag-options"), q.tags || [], "q-tag-option");
   el("q-due").value = q.due || "";
   el("q-repeat").checked = q.repeat || false;
   el("q-notes").value = q.notes || "";
   el("q-note-color").value = q.noteColor || "#0ea5e9";
   el("q-anti").classList.toggle("font-bold", antiQuest);
+  el("btn-submit-quest").textContent = "Save";
 }
   function render() {
     el("player-name-display").textContent = state.player.name;
@@ -2104,18 +2116,18 @@ function startEdit(id) {
     renderNoteFilters();
     renderQuestList();
     renderNotes();
-    el("q-stats").innerHTML = "";
-    addStatRow();
-    el("q-stat-adjust").checked = false;
-    el("q-skills").innerHTML = "";
-    addSkillRow();
-    el("q-adjust").checked = false;
-    document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
-    document.querySelectorAll(".q-stat").forEach(populateStatOptions);
     if (!editingId) {
+      el("q-stats").innerHTML = "";
+      addStatRow();
+      el("q-stat-adjust").checked = false;
+      el("q-skills").innerHTML = "";
+      addSkillRow();
+      el("q-adjust").checked = false;
       renderTagSelection(el("q-tag-options"), [], "q-tag-option");
       el("q-note-color").value = "#0ea5e9";
     }
+    document.querySelectorAll(".q-skill").forEach(sel => populateSkillOptions(sel));
+    document.querySelectorAll(".q-stat").forEach(sel => populateStatOptions(sel));
     if (!editingNoteId) {
       renderTagSelection(el("note-tag-options"), [], "note-tag-option");
       el("note-color").value = "#0ea5e9";
@@ -2287,7 +2299,7 @@ function startEdit(id) {
         logList.appendChild(node);
       });
   }
-  el("btn-submit-quest").textContent = editingId ? "Save Edit" : "Add Quest";
+  el("btn-submit-quest").textContent = editingId ? "Save" : "Add Quest";
   updateStreakTimer();
 }
 // Events
@@ -2323,10 +2335,11 @@ el("btn-show-form").onclick = () => {
   el("q-stats").innerHTML = "";
   addStatRow();
   el("q-stat-adjust").checked = false;
-  document.querySelectorAll(".q-stat").forEach(populateStatOptions);
-  document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+  document.querySelectorAll(".q-stat").forEach(sel => populateStatOptions(sel));
+  document.querySelectorAll(".q-skill").forEach(sel => populateSkillOptions(sel));
   renderTagSelection(el("q-tag-options"), [], "q-tag-option");
   el("q-note-color").value = "#0ea5e9";
+  el("btn-submit-quest").textContent = "Add Quest";
   el("quest-form").classList.toggle("hidden");
 };
 el("quest-form").onsubmit = e => {
