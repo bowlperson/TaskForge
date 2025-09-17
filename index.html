@@ -20,6 +20,25 @@
     body.theme-emerald { background-color: #064e3b; color: #d1fae5; }
     body.theme-rose { background-color: #881337; color: #ffe4e6; }
     body.theme-amber { background-color: #78350f; color: #fffbeb; }
+    #dungeon-log {
+      max-height: 9.5rem;
+      min-height: 9.5rem;
+      overflow-y: auto;
+      font-family: "Courier New", Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    #dungeon-log .chat-block {
+      background-color: rgba(15, 23, 42, 0.65);
+      border-radius: 0.5rem;
+      padding: 0.35rem 0.65rem;
+    }
+    #dungeon-log .chat-line {
+      display: block;
+      line-height: 1.2;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen theme-default">
@@ -28,6 +47,10 @@
       <h1 class="text-3xl font-bold">TaskForge <span class="text-sky-400">Beta</span></h1>
       <div class="flex gap-2 items-center">
         <div id="streak-display" class="text-sm"></div>
+        <div class="relative">
+          <button id="btn-open-inbox" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Inbox</button>
+          <span id="inbox-badge" class="absolute -top-2 -right-2 text-xs font-semibold bg-rose-600 text-white px-1.5 py-0.5 rounded-full hidden"></span>
+        </div>
         <button id="btn-open-settings" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Settings</button>
       </div>
     </header>
@@ -66,11 +89,13 @@
 
             <div class="mt-4 grid grid-cols-2 gap-2">
               <button id="btn-open-quests" class="w-full text-left font-semibold hover:text-sky-300">Quests</button>
+              <button id="btn-open-status" class="w-full text-left font-semibold hover:text-sky-300">Status</button>
               <button id="btn-open-stats" class="w-full text-left font-semibold hover:text-sky-300">Main Stats</button>
               <button id="btn-open-skills" class="w-full text-left font-semibold hover:text-sky-300">Skills</button>
               <button id="btn-open-tags" class="w-full text-left font-semibold hover:text-sky-300">Tags</button>
               <button id="btn-open-shop" class="w-full text-left font-semibold hover:text-sky-300">Shop</button>
               <button id="btn-open-inventory" class="w-full text-left font-semibold hover:text-sky-300">Inventory</button>
+              <button id="btn-open-notes" class="w-full text-left font-semibold hover:text-sky-300">Journal</button>
               <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Audit Log</button>
               <button id="btn-open-dungeon" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Dungeon</button>
             </div>
@@ -85,6 +110,7 @@
           <div id="view-quests">
             <h2 class="text-xl font-semibold mb-3">Quests</h2>
             <button id="btn-show-form" class="px-4 py-2 mb-3 rounded bg-sky-700 hover:bg-sky-600">Create New Quest</button>
+            <div id="quest-filter-container" class="flex flex-col text-xs mb-3"></div>
             <form id="quest-form" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2 items-end">
               <div class="md:col-span-2 sm:col-span-2">
                 <label class="text-sm opacity-80">Title</label>
@@ -124,9 +150,13 @@
                 <label class="flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="q-stat-adjust" class="rounded"> Adjust stat values</label>
                 <button type="button" id="btn-add-stat-row" class="mt-1 px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700">Add Stat</button>
               </div>
+              <div class="md:col-span-2">
+                <label class="text-sm opacity-80">Tags</label>
+                <div id="q-tag-options" class="w-full rounded bg-slate-800 p-2 max-h-36 overflow-y-auto space-y-1 text-xs"></div>
+              </div>
               <div>
-                <label class="text-sm opacity-80">Tag</label>
-                <select id="q-tag" class="w-full px-3 py-2 rounded bg-slate-800"></select>
+                <label class="text-sm opacity-80">Note Color</label>
+                <input id="q-note-color" type="color" value="#0ea5e9" class="w-full h-10 p-0 rounded bg-slate-800 border-0" />
               </div>
               <div>
                 <label class="text-sm opacity-80">Due</label>
@@ -149,6 +179,11 @@
           </div>
 
           <div id="view-stats" class="hidden"><h2 class="text-xl font-semibold mb-3">Main Stats</h2><div id="stats-list"></div></div>
+          <div id="view-status" class="hidden">
+            <h2 class="text-xl font-semibold mb-3">Status Effects</h2>
+            <p class="text-xs opacity-70 mb-3">Active buffs and debuffs gathered from dungeon expeditions and consumables.</p>
+            <div id="status-list" class="space-y-2"></div>
+          </div>
           <div id="view-skills" class="hidden">
             <h2 class="text-xl font-semibold mb-3 flex items-center justify-between">Skills <button id="btn-add-skill" class="text-xs px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600">Add Skill</button></h2>
             <div id="skills-list"></div>
@@ -196,6 +231,37 @@
             <h2 class="text-xl font-semibold mb-3">Inventory</h2>
             <div id="inventory-list" class="grid grid-cols-3 gap-2"></div>
           </div>
+          <div id="view-inbox" class="hidden">
+            <h2 class="text-xl font-semibold mb-3">Inbox</h2>
+            <div id="inbox-list" class="grid gap-3 text-sm"></div>
+          </div>
+          <div id="view-notes" class="hidden">
+            <h2 class="text-xl font-semibold mb-3 flex items-center justify-between">Journal <button id="btn-show-note-form" class="text-xs px-2 py-1 rounded bg-sky-700 hover:bg-sky-600">New Entry</button></h2>
+            <form id="note-form" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+              <div>
+                <label class="text-sm opacity-80">Title</label>
+                <input id="note-title" class="w-full px-3 py-2 rounded bg-slate-800" placeholder="Reminder" />
+              </div>
+              <div>
+                <label class="text-sm opacity-80">Color</label>
+                <input id="note-color" type="color" value="#0ea5e9" class="w-full h-10 p-0 rounded bg-slate-800 border-0" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="text-sm opacity-80">Tags</label>
+                <div id="note-tag-options" class="w-full rounded bg-slate-800 p-2 max-h-36 overflow-y-auto space-y-1 text-xs"></div>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="text-sm opacity-80">Details</label>
+                <textarea id="note-body" rows="3" class="w-full px-3 py-2 rounded bg-slate-800"></textarea>
+              </div>
+              <div class="sm:col-span-2 flex gap-2">
+                <button id="btn-save-note" class="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600">Save Entry</button>
+                <button type="button" id="btn-cancel-note" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700">Cancel</button>
+              </div>
+            </form>
+            <div id="note-filter-container" class="flex flex-col text-xs mb-3"></div>
+            <div id="note-list" class="grid gap-3"></div>
+          </div>
           <div id="view-log" class="hidden"><h2 class="text-xl font-semibold mb-3">Audit Log</h2><div id="log-list"></div></div>
           <div id="view-dungeon" class="hidden">
             <h2 class="text-xl font-semibold mb-3">Dungeon</h2>
@@ -204,7 +270,10 @@
               Current Run: <span id="dungeon-current">0</span> Monster(s) Defeated
             </div>
             <div id="dungeon-monster" class="mb-4 text-center"></div>
-            <div id="dungeon-log" class="text-xs space-y-1 mb-4"></div>
+            <div class="mb-4">
+              <h3 class="font-semibold mb-1 text-sm">Dungeon Chat</h3>
+              <div id="dungeon-log" class="text-xs space-y-1"></div>
+            </div>
             <div id="dungeon-quests" class="mb-4"></div>
             <div id="dungeon-actions" class="text-center"></div>
           </div>
@@ -247,11 +316,17 @@
               <div id="dev-titles" class="space-y-2"></div>
               <h4 class="font-semibold mb-2 mt-4">Assets</h4>
               <div id="dev-monsters" class="space-y-2 mb-2"></div>
+              <button id="btn-save-assets" class="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-sm mb-3">Save Custom Assets</button>
               <label class="block mb-1 text-sm">Default Shop Item Image</label>
               <input id="dev-shop-img" type="file" accept="image/png" class="w-full text-sm mb-4"/>
               <h4 class="font-semibold mb-2">Item Audio</h4>
               <div id="dev-item-audio" class="space-y-2 mb-2"></div>
               <button id="dev-add-item-audio" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sm mb-4">Add Item Audio</button>
+            </div>
+            <div class="mb-4">
+              <h3 class="font-semibold mb-2">Quest Filters</h3>
+              <p class="text-xs opacity-70 mb-2">Pick the tags that should appear when the Custom filter is active for Quests and Journal.</p>
+              <div id="custom-filter-settings" class="rounded bg-slate-800 p-3 space-y-1 text-xs"></div>
             </div>
             <div class="mb-4">
               <h3 class="font-semibold mb-2">Danger Zone</h3>
@@ -271,8 +346,8 @@
         <span class="px-2 py-0.5 rounded bg-sky-700/50"><span class="q-xp"></span> XP</span>
         <span class="px-2 py-0.5 rounded bg-fuchsia-700/40 q-tag-stat"></span>
         <span class="px-2 py-0.5 rounded bg-amber-700/40 q-tag-skill hidden"></span>
-        <span class="q-tag hidden px-2 py-0.5 rounded text-slate-900"></span>
       </div>
+      <div class="mt-1 flex flex-wrap gap-1 q-tag-pills"></div>
       <div class="q-due text-xs opacity-70 mt-1"></div>
       <p class="q-notes text-sm opacity-85 mt-2"></p>
       <div class="mt-3 flex gap-2">
@@ -327,7 +402,8 @@ const DEFAULT_SAVE = {
       Wisdom: 0,
       Charisma: 0
     },
-    skills: Object.fromEntries(DEFAULT_SKILLS.map(s => [s.name, 0]))
+    skills: Object.fromEntries(DEFAULT_SKILLS.map(s => [s.name, 0])),
+    statuses: []
   },
   quests: [],
   log: [],
@@ -336,8 +412,10 @@ const DEFAULT_SAVE = {
   shop: [],
   inventory: [],
   streak: { count: 0, last: 0 },
-  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {} },
-  dungeon: { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [] }
+  notes: [],
+  inbox: [],
+  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {}, customFilterTags: [] },
+  dungeon: { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], recentMonsters: [], activeMonsterKey: null }
 };
 const el = id => document.getElementById(id);
 const state =
@@ -355,15 +433,61 @@ if (state.player.prestige === undefined) state.player.prestige = 0;
 if (state.player.gold === undefined) state.player.gold = 0;
 if (!state.shop) state.shop = [];
 if (!state.inventory) state.inventory = [];
+if (!state.notes) state.notes = [];
+if (!Array.isArray(state.inbox)) state.inbox = [];
+state.inbox = state.inbox
+  .filter(msg => msg && typeof msg === "object")
+  .map(msg => ({
+    ...msg,
+    id: msg.id || crypto.randomUUID(),
+    title: msg.title || "Message",
+    body: msg.body || "",
+    timestamp: msg.timestamp || Date.now(),
+    read: msg.read !== undefined ? !!msg.read : true,
+    source: msg.source || "system"
+  }));
 if (!state.streak) state.streak = { count: 0, last: 0 };
-if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {} };
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {}, customFilterTags: [] };
 if (state.settings.volume === undefined) state.settings.volume = 1;
 if (!state.settings.theme) state.settings.theme = "default";
 if (!state.settings.titles) state.settings.titles = {};
 if (!state.settings.monsterImages) state.settings.monsterImages = {};
 if (state.settings.defaultShopImg === undefined) state.settings.defaultShopImg = "";
 if (!state.settings.itemAudio) state.settings.itemAudio = {};
-if (!state.dungeon) state.dungeon = { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [] };
+if (!state.settings.customFilterTags) state.settings.customFilterTags = [];
+if (!state.player.statuses) state.player.statuses = [];
+if (!state.dungeon) state.dungeon = { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], recentMonsters: [], activeMonsterKey: null };
+if (!Array.isArray(state.dungeon.chat)) state.dungeon.chat = [];
+if (!Array.isArray(state.dungeon.recentMonsters)) state.dungeon.recentMonsters = [];
+if (state.dungeon.activeMonsterKey === undefined) state.dungeon.activeMonsterKey = null;
+if (state.dungeon.current && !state.dungeon.activeMonsterKey) {
+  state.dungeon.activeMonsterKey = crypto.randomUUID();
+}
+const fallbackMonsterKey =
+  state.dungeon.activeMonsterKey ||
+  state.dungeon.recentMonsters.slice(-1)[0] ||
+  (state.dungeon.chat.length ? "legacy" : null);
+state.dungeon.chat = state.dungeon.chat.map(entry => {
+  if (!entry || typeof entry !== "object") {
+    return {
+      id: crypto.randomUUID(),
+      title: String(entry || ""),
+      lines: [],
+      monsterKey: fallbackMonsterKey,
+      createdAt: Date.now()
+    };
+  }
+  return {
+    id: entry.id || crypto.randomUUID(),
+    title: entry.title || "",
+    lines: Array.isArray(entry.lines) ? entry.lines : [],
+    monsterKey: entry.monsterKey || fallbackMonsterKey,
+    createdAt: entry.createdAt || Date.now()
+  };
+});
+if (fallbackMonsterKey && !state.dungeon.recentMonsters.includes(fallbackMonsterKey)) {
+  state.dungeon.recentMonsters.push(fallbackMonsterKey);
+}
 state.quests.forEach(q => {
   if (q.stat && !q.stats) {
     q.stats = q.stat ? [q.stat] : [];
@@ -376,6 +500,15 @@ state.quests.forEach(q => {
   if (q.stats && q.stats.length && typeof q.stats[0] === "string") {
     q.stats = q.stats.map(s => ({ name: s, mult: 1 }));
   }
+  if (!Array.isArray(q.tags)) {
+    if (q.tag !== undefined) {
+      q.tags = q.tag ? [q.tag] : [];
+      delete q.tag;
+    } else {
+      q.tags = [];
+    }
+  }
+  if (!q.noteColor) q.noteColor = "#0ea5e9";
 });
 state.log.forEach(l => {
   if (l.stat && !l.stats) {
@@ -384,6 +517,15 @@ state.log.forEach(l => {
   if (l.skill && !l.skills) {
     l.skills = l.skill ? [{ name: l.skill, points: l.skillPoints }] : [];
   }
+  if (!Array.isArray(l.tags)) {
+    if (l.tag !== undefined) {
+      l.tags = l.tag ? [l.tag] : [];
+      delete l.tag;
+    } else {
+      l.tags = [];
+    }
+  }
+  if (l.noteColor === undefined) l.noteColor = null;
 });
 if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000) {
   state.streak.count = 0;
@@ -393,6 +535,11 @@ let statsChart = null;
 let editingId = null;
 let editingShopId = null;
 let antiQuest = false;
+let editingNoteId = null;
+const QUEST_FILTER_ALL = "__all";
+const QUEST_FILTER_CUSTOM = "__custom";
+let questFilterSelection = QUEST_FILTER_ALL;
+let noteFilterSelection = QUEST_FILTER_ALL;
 const goldSound = new Audio("Sound Effects/goldcoins.mp3");
 const levelSounds = [
   new Audio("Sound Effects/lvlupfallout.mp3"),
@@ -436,6 +583,574 @@ function showModal(content) {
 
 function closeModal() {
   el("modal").classList.add("hidden");
+}
+
+function hexToRgba(hex, alpha = 0.2) {
+  if (!hex) return `rgba(14,165,233,${alpha})`;
+  let value = hex.replace("#", "");
+  if (value.length === 3) value = value.split("").map(ch => ch + ch).join("");
+  const num = parseInt(value, 16);
+  if (Number.isNaN(num)) return `rgba(14,165,233,${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function addStatus(status) {
+  const existing = state.player.statuses.findIndex(s => s.id === status.id);
+  if (existing !== -1) {
+    state.player.statuses[existing] = { ...state.player.statuses[existing], ...status };
+  } else {
+    state.player.statuses.push(status);
+  }
+  save();
+  renderStatusPage();
+}
+
+function removeStatus(id) {
+  const idx = state.player.statuses.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    state.player.statuses.splice(idx, 1);
+    save();
+    renderStatusPage();
+  }
+}
+
+function decrementStatusUse(id) {
+  const status = state.player.statuses.find(s => s.id === id);
+  if (!status || status.uses === undefined) return;
+  status.uses = Math.max(0, status.uses - 1);
+  if (status.uses === 0) {
+    removeStatus(id);
+  } else {
+    save();
+    renderStatusPage();
+  }
+}
+
+function renderStatusPage() {
+  const list = el("status-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!state.player.statuses.length) {
+    list.innerHTML = '<div class="text-sm opacity-70">No active statuses.</div>';
+    return;
+  }
+  state.player.statuses.forEach(status => {
+    const wrap = document.createElement("div");
+    wrap.className = `${status.type === "debuff" ? "bg-rose-900/40" : "bg-emerald-900/30"} rounded-lg p-3 ring-1 ring-white/10`;
+    const header = document.createElement("div");
+    header.className = "flex justify-between items-start";
+    const title = document.createElement("div");
+    title.innerHTML = `<div class="font-semibold">${status.name}</div><div class="text-xs opacity-80 mt-1">${status.desc || ""}</div>`;
+    header.appendChild(title);
+    if (status.uses !== undefined) {
+      const uses = document.createElement("span");
+      uses.className = "text-xs opacity-70";
+      uses.textContent = `Uses: ${status.uses}`;
+      header.appendChild(uses);
+    } else if (status.expiresAt) {
+      const exp = document.createElement("span");
+      exp.className = "text-xs opacity-70";
+      exp.textContent = new Date(status.expiresAt).toLocaleString();
+      header.appendChild(exp);
+    }
+    wrap.appendChild(header);
+    list.appendChild(wrap);
+  });
+}
+
+function renderTagSelection(container, selected = [], optionClass = "tag-option") {
+  if (!container) return;
+  const chosen = new Set(selected);
+  container.innerHTML = "";
+  if (!state.tags.length) {
+    container.innerHTML = '<div class="text-xs opacity-70">No tags available.</div>';
+    return;
+  }
+  state.tags
+    .slice()
+    .sort((a, b) => (a.priority || 0) - (b.priority || 0) || a.name.localeCompare(b.name))
+    .forEach(tag => {
+      const label = document.createElement("label");
+      label.className = "flex items-center justify-between gap-2 bg-slate-900/40 rounded px-2 py-1";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = tag.id;
+      input.checked = chosen.has(tag.id);
+      input.className = `rounded ${optionClass}`;
+      const span = document.createElement("span");
+      span.className = "flex items-center gap-2 text-xs";
+      const dot = document.createElement("span");
+      dot.className = "inline-block w-3 h-3 rounded-full";
+      dot.style.backgroundColor = tag.color || "#38bdf8";
+      span.appendChild(dot);
+      const name = document.createElement("span");
+      name.textContent = tag.name;
+      span.appendChild(name);
+      label.appendChild(input);
+      label.appendChild(span);
+      container.appendChild(label);
+    });
+}
+
+function questMatchesFilters(q) {
+  if (!questFilterSelection || questFilterSelection === QUEST_FILTER_ALL) return true;
+  const questTags = Array.isArray(q.tags) ? q.tags : [];
+  if (questFilterSelection === QUEST_FILTER_CUSTOM) {
+    if (!state.settings.customFilterTags.length) return false;
+    return questTags.some(id => state.settings.customFilterTags.includes(id));
+  }
+  return questTags.includes(questFilterSelection);
+}
+
+function noteMatchesFilters(note) {
+  if (!noteFilterSelection || noteFilterSelection === QUEST_FILTER_ALL) return true;
+  const noteTags = Array.isArray(note.tags) ? note.tags : [];
+  if (noteFilterSelection === QUEST_FILTER_CUSTOM) {
+    if (!state.settings.customFilterTags.length) return false;
+    return noteTags.some(id => state.settings.customFilterTags.includes(id));
+  }
+  return noteTags.includes(noteFilterSelection);
+}
+
+function renderQuestFilters() {
+  const container = el("quest-filter-container");
+  if (!container) return;
+  container.innerHTML = "";
+  const filters = [
+    { id: QUEST_FILTER_ALL, label: "All" },
+    { id: QUEST_FILTER_CUSTOM, label: "Custom" }
+  ];
+  state.tags
+    .slice()
+    .sort((a, b) => (a.priority || 0) - (b.priority || 0) || a.name.localeCompare(b.name))
+    .forEach(tag => {
+      filters.push({ id: tag.id, label: tag.name });
+    });
+  if (!filters.some(f => f.id === questFilterSelection)) {
+    questFilterSelection = QUEST_FILTER_ALL;
+  }
+  const label = document.createElement("label");
+  label.className = "text-xs uppercase tracking-wide opacity-70";
+  label.textContent = "Filter";
+  container.appendChild(label);
+  const select = document.createElement("select");
+  select.className = "mt-1 px-3 py-2 rounded bg-slate-800 text-sm";
+  filters.forEach(filter => {
+    const option = document.createElement("option");
+    option.value = filter.id;
+    option.textContent = filter.label;
+    select.appendChild(option);
+  });
+  select.value = questFilterSelection;
+  select.onchange = e => {
+    questFilterSelection = e.target.value;
+    renderQuestList();
+  };
+  container.appendChild(select);
+  if (questFilterSelection === QUEST_FILTER_CUSTOM && !state.settings.customFilterTags.length) {
+    const note = document.createElement("div");
+    note.className = "text-xs opacity-60 mt-2";
+    note.textContent = "No tags assigned to Custom filter.";
+    container.appendChild(note);
+  }
+}
+
+function renderNoteFilters() {
+  const container = el("note-filter-container");
+  if (!container) return;
+  container.innerHTML = "";
+  const filters = [
+    { id: QUEST_FILTER_ALL, label: "All" },
+    { id: QUEST_FILTER_CUSTOM, label: "Custom" }
+  ];
+  state.tags
+    .slice()
+    .sort((a, b) => (a.priority || 0) - (b.priority || 0) || a.name.localeCompare(b.name))
+    .forEach(tag => {
+      filters.push({ id: tag.id, label: tag.name });
+    });
+  if (!filters.some(f => f.id === noteFilterSelection)) {
+    noteFilterSelection = QUEST_FILTER_ALL;
+  }
+  const label = document.createElement("label");
+  label.className = "text-xs uppercase tracking-wide opacity-70";
+  label.textContent = "Filter";
+  container.appendChild(label);
+  const select = document.createElement("select");
+  select.className = "mt-1 px-3 py-2 rounded bg-slate-800 text-sm";
+  filters.forEach(filter => {
+    const option = document.createElement("option");
+    option.value = filter.id;
+    option.textContent = filter.label;
+    select.appendChild(option);
+  });
+  select.value = noteFilterSelection;
+  select.onchange = e => {
+    noteFilterSelection = e.target.value;
+    renderNotes();
+  };
+  container.appendChild(select);
+  if (noteFilterSelection === QUEST_FILTER_CUSTOM && !state.settings.customFilterTags.length) {
+    const note = document.createElement("div");
+    note.className = "text-xs opacity-60 mt-2";
+    note.textContent = "No tags assigned to Custom filter.";
+    container.appendChild(note);
+  }
+}
+
+function renderQuestList() {
+  const qlist = el("quest-list");
+  if (!qlist) return;
+  qlist.innerHTML = "";
+  const quests = state.quests
+    .slice()
+    .sort((a, b) => {
+      const tagA = (a.tags || [])[0];
+      const tagB = (b.tags || [])[0];
+      const ta = state.tags.find(t => t.id === tagA)?.priority ?? Infinity;
+      const tb = state.tags.find(t => t.id === tagB)?.priority ?? Infinity;
+      if (ta === tb) return (a.title || "").localeCompare(b.title || "");
+      return ta - tb;
+    })
+    .filter(questMatchesFilters);
+  if (!quests.length) {
+    qlist.innerHTML = '<div class="text-sm opacity-70">No quests found.</div>';
+    return;
+  }
+  quests.forEach(q => {
+    const node = el("tpl-quest").content.cloneNode(true);
+    node.querySelector(".q-title").textContent = q.title;
+    node.querySelector(".q-xp").textContent = q.xp >= 0 ? `+${q.xp}` : q.xp;
+    const statSpan = node.querySelector(".q-tag-stat");
+    if (q.stats && q.stats.length) {
+      statSpan.textContent = q.stats.map(s => s.name).join(", ");
+      statSpan.classList.remove("hidden");
+    } else {
+      statSpan.classList.add("hidden");
+    }
+    const skillSpan = node.querySelector(".q-tag-skill");
+    if (q.skills && q.skills.length) {
+      skillSpan.textContent = q.skills.map(sk => sk.name).join(", ");
+      skillSpan.classList.remove("hidden");
+    } else {
+      skillSpan.classList.add("hidden");
+    }
+    const tagWrap = node.querySelector(".q-tag-pills");
+    tagWrap.innerHTML = "";
+    (q.tags || []).forEach(id => {
+      const tag = state.tags.find(t => t.id === id);
+      if (!tag) return;
+      const pill = document.createElement("span");
+      pill.className = "px-2 py-0.5 rounded text-xs text-slate-900";
+      pill.style.backgroundColor = tag.color || "#38bdf8";
+      pill.textContent = tag.name;
+      tagWrap.appendChild(pill);
+    });
+    tagWrap.classList.toggle("hidden", !tagWrap.childElementCount);
+    if (q.anti) {
+      node.querySelector(".q-card").classList.add("bg-rose-900");
+    }
+    if (q.due) {
+      const d = new Date(q.due);
+      node.querySelector(".q-due").textContent = `Due: ${d.toLocaleString()}`;
+      node.querySelector(".q-due").classList.remove("hidden");
+    } else {
+      node.querySelector(".q-due").classList.add("hidden");
+    }
+    const notesEl = node.querySelector(".q-notes");
+    notesEl.textContent = q.notes || "";
+    notesEl.style.borderLeft = `4px solid ${q.noteColor || "#0ea5e9"}`;
+    notesEl.style.backgroundColor = hexToRgba(q.noteColor || "#0ea5e9", 0.2);
+    notesEl.style.paddingLeft = "0.5rem";
+    node.querySelector(".q-complete").onclick = () => confirmQuest(q.id);
+    node.querySelector(".q-delete").onclick = () => deleteQuest(q.id);
+    node.querySelector(".q-edit").onclick = () => startEdit(q.id);
+    qlist.appendChild(node);
+  });
+}
+
+function renderNotes() {
+  const list = el("note-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const notes = state.notes
+    .slice()
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    .filter(noteMatchesFilters);
+  if (!notes.length) {
+    list.innerHTML = '<div class="text-sm opacity-70">No journal entries yet.</div>';
+    return;
+  }
+  notes.forEach(note => {
+    const card = document.createElement("div");
+    card.className = "rounded-xl p-3 ring-1 ring-white/10";
+    card.style.backgroundColor = hexToRgba(note.color || "#0ea5e9", 0.18);
+    const header = document.createElement("div");
+    header.className = "flex justify-between items-start mb-2";
+    const titleWrap = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "font-semibold";
+    title.textContent = note.title || "Untitled";
+    const meta = document.createElement("div");
+    meta.className = "text-xs opacity-70";
+    meta.textContent = new Date(note.updatedAt || Date.now()).toLocaleString();
+    titleWrap.appendChild(title);
+    titleWrap.appendChild(meta);
+    header.appendChild(titleWrap);
+    const actions = document.createElement("div");
+    actions.className = "flex gap-2";
+    const editBtn = document.createElement("button");
+    editBtn.className = "text-xs px-2 py-1 rounded bg-sky-700 hover:bg-sky-600";
+    editBtn.textContent = "Edit";
+    editBtn.onclick = () => startNoteEdit(note.id);
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "text-xs px-2 py-1 rounded bg-rose-700 hover:bg-rose-600";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.onclick = () => deleteNote(note.id);
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
+    header.appendChild(actions);
+    card.appendChild(header);
+    const body = document.createElement("div");
+    body.className = "text-sm whitespace-pre-wrap";
+    body.textContent = note.body || "";
+    card.appendChild(body);
+    const tagWrap = document.createElement("div");
+    tagWrap.className = "flex flex-wrap gap-1 mt-2";
+    (note.tags || []).forEach(id => {
+      const tag = state.tags.find(t => t.id === id);
+      if (!tag) return;
+      const pill = document.createElement("span");
+      pill.className = "px-2 py-0.5 rounded text-xs text-slate-900";
+      pill.style.backgroundColor = tag.color || "#38bdf8";
+      pill.textContent = tag.name;
+      tagWrap.appendChild(pill);
+    });
+    if (tagWrap.childElementCount) card.appendChild(tagWrap);
+    list.appendChild(card);
+  });
+}
+
+function startNoteEdit(id) {
+  const note = state.notes.find(n => n.id === id);
+  if (!note) return;
+  editingNoteId = id;
+  const form = el("note-form");
+  form.classList.remove("hidden");
+  el("note-title").value = note.title || "";
+  el("note-body").value = note.body || "";
+  el("note-color").value = note.color || "#0ea5e9";
+  renderTagSelection(el("note-tag-options"), note.tags || [], "note-tag-option");
+  el("btn-save-note").textContent = "Update Entry";
+}
+
+function deleteNote(id) {
+  const idx = state.notes.findIndex(n => n.id === id);
+  if (idx === -1) return;
+  state.notes.splice(idx, 1);
+  if (editingNoteId === id) {
+    editingNoteId = null;
+    el("note-form").reset();
+    el("note-form").classList.add("hidden");
+    renderTagSelection(el("note-tag-options"), [], "note-tag-option");
+    el("note-color").value = "#0ea5e9";
+    el("btn-save-note").textContent = "Save Entry";
+  }
+  save();
+  renderNotes();
+  renderNoteFilters();
+}
+
+function renderCustomFilterSettings() {
+  const container = el("custom-filter-settings");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!state.tags.length) {
+    container.innerHTML = '<div class="text-xs opacity-70">Create tags to build a custom filter.</div>';
+    return;
+  }
+  state.tags
+    .slice()
+    .sort((a, b) => (a.priority || 0) - (b.priority || 0) || a.name.localeCompare(b.name))
+    .forEach(tag => {
+      const label = document.createElement("label");
+      label.className = "flex items-center justify-between gap-2 bg-slate-900/40 rounded px-2 py-1";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = tag.id;
+      input.checked = state.settings.customFilterTags.includes(tag.id);
+      input.className = "custom-filter-option rounded";
+      input.onchange = e => {
+        if (e.target.checked) {
+          if (!state.settings.customFilterTags.includes(tag.id)) state.settings.customFilterTags.push(tag.id);
+        } else {
+          state.settings.customFilterTags = state.settings.customFilterTags.filter(t => t !== tag.id);
+        }
+        save();
+        renderQuestFilters();
+        renderNoteFilters();
+        renderQuestList();
+        renderNotes();
+      };
+      const span = document.createElement("span");
+      span.className = "flex items-center gap-2 text-xs";
+      const dot = document.createElement("span");
+      dot.className = "inline-block w-3 h-3 rounded-full";
+      dot.style.backgroundColor = tag.color || "#38bdf8";
+      span.appendChild(dot);
+      const name = document.createElement("span");
+      name.textContent = tag.name;
+      span.appendChild(name);
+      label.appendChild(input);
+      label.appendChild(span);
+      container.appendChild(label);
+    });
+}
+
+function pruneDungeonChat() {
+  if (!state.dungeon) return;
+  if (!Array.isArray(state.dungeon.recentMonsters)) state.dungeon.recentMonsters = [];
+  const keepKeys = state.dungeon.recentMonsters.slice(-2);
+  state.dungeon.recentMonsters = keepKeys.slice();
+  state.dungeon.chat.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  state.dungeon.chat = state.dungeon.chat.filter(entry => {
+    if (!entry.monsterKey) {
+      if (keepKeys.length) {
+        entry.monsterKey = keepKeys[keepKeys.length - 1];
+      }
+      return true;
+    }
+    return keepKeys.includes(entry.monsterKey);
+  });
+  keepKeys.forEach(key => {
+    let count = 0;
+    state.dungeon.chat.forEach(entry => {
+      if (entry.monsterKey === key) count++;
+    });
+    if (count > 7) {
+      let removed = 0;
+      state.dungeon.chat = state.dungeon.chat.filter(entry => {
+        if (entry.monsterKey !== key) return true;
+        if (removed < count - 7) {
+          removed++;
+          return false;
+        }
+        return true;
+      });
+    }
+  });
+}
+
+function addDungeonChatBlock(title, lines = []) {
+  if (!state.dungeon) return;
+  const normalizedLines = Array.isArray(lines) ? lines : [String(lines)];
+  const recent = Array.isArray(state.dungeon.recentMonsters) ? state.dungeon.recentMonsters : [];
+  const lastKey = recent[recent.length - 1] || null;
+  const monsterKey = state.dungeon.activeMonsterKey || lastKey || crypto.randomUUID();
+  if (!recent.includes(monsterKey)) {
+    recent.push(monsterKey);
+    state.dungeon.recentMonsters = recent;
+  }
+  state.dungeon.chat.push({
+    id: crypto.randomUUID(),
+    title,
+    lines: normalizedLines,
+    monsterKey,
+    createdAt: Date.now()
+  });
+  pruneDungeonChat();
+}
+
+function addInboxMessage({ title, body, source = "system" }) {
+  if (!Array.isArray(state.inbox)) state.inbox = [];
+  const entry = {
+    id: crypto.randomUUID(),
+    title: title || "Message",
+    body: body || "",
+    source,
+    timestamp: Date.now(),
+    read: false
+  };
+  state.inbox.push(entry);
+  if (state.inbox.length > 200) {
+    state.inbox = state.inbox.slice(-200);
+  }
+  save();
+  updateInboxBadge();
+  const view = el("view-inbox");
+  if (view && !view.classList.contains("hidden")) {
+    renderInbox();
+  }
+}
+
+function renderInbox() {
+  const list = el("inbox-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!state.inbox.length) {
+    list.innerHTML = '<div class="text-xs opacity-70">No messages yet.</div>';
+    return;
+  }
+  state.inbox
+    .slice()
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+    .forEach(msg => {
+      const card = document.createElement("div");
+      card.className = "rounded-xl bg-slate-900/40 p-3 ring-1 ring-white/10";
+      if (!msg.read || msg.justOpened) {
+        card.classList.add("ring-emerald-500/50");
+      }
+      const header = document.createElement("div");
+      header.className = "flex items-start justify-between mb-2";
+      const titleWrap = document.createElement("div");
+      titleWrap.innerHTML = `<div class=\"font-semibold\">${msg.title}</div><div class=\"text-xs opacity-70\">${new Date(msg.timestamp || Date.now()).toLocaleString()}</div>`;
+      header.appendChild(titleWrap);
+      const source = document.createElement("span");
+      source.className = "text-xs uppercase tracking-wide opacity-60";
+      source.textContent = msg.source || "system";
+      header.appendChild(source);
+      card.appendChild(header);
+      const body = document.createElement("div");
+      body.className = "whitespace-pre-wrap text-sm";
+      body.textContent = msg.body || "";
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+}
+
+function updateInboxBadge() {
+  const badge = el("inbox-badge");
+  if (!badge) return;
+  const unread = state.inbox.filter(msg => !msg.read).length;
+  if (unread > 0) {
+    badge.textContent = unread > 99 ? "99+" : unread;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+function openInbox() {
+  show("view-inbox");
+  let changed = false;
+  state.inbox.forEach(msg => {
+    if (!msg.read) {
+      msg.read = true;
+      msg.justOpened = true;
+      changed = true;
+    } else {
+      msg.justOpened = false;
+    }
+  });
+  renderInbox();
+  state.inbox.forEach(msg => {
+    if (Object.prototype.hasOwnProperty.call(msg, "justOpened")) delete msg.justOpened;
+  });
+  if (changed) save();
+  updateInboxBadge();
 }
 
 function textModal(label, value, cb) {
@@ -573,8 +1288,12 @@ function spawnMonster() {
     img,
     spawn: Date.now()
   };
-  state.dungeon.chat = [];
+  state.dungeon.activeMonsterKey = crypto.randomUUID();
+  if (!Array.isArray(state.dungeon.recentMonsters)) state.dungeon.recentMonsters = [];
+  state.dungeon.recentMonsters.push(state.dungeon.activeMonsterKey);
+  pruneDungeonChat();
   state.dungeon.usedLogs = [];
+  addDungeonChatBlock(`${template.name} Approaches`, [`Tier ${tier} Threat`, `HP: ${hp}`]);
   save();
   renderDungeon();
 }
@@ -582,45 +1301,95 @@ function attackDungeon(logId) {
   const log = state.log.find(l => l.id === logId);
   const m = state.dungeon.current;
   if (!log || !m) return;
-  let dmg = log.xp / 100;
-  let bonus = 0;
-  const weakHit =
-    log.skills.some(sk => m.weak.includes(sk.name)) ||
-    log.stats.some(st => m.weak.includes(st.name));
-  log.skills.forEach(sk => {
-    if (m.weak.includes(sk.name)) bonus += state.player.skills[sk.name] || 0;
-    if (m.resist.includes(sk.name)) dmg *= 0.85;
-    if (m.weak.includes(sk.name)) dmg *= 1.15;
+  const dieSides = log.diff >= 1000 ? 20 : 8;
+  let roll = rand(1, dieSides);
+  const rollHistory = [roll];
+  let missed = false;
+  if (roll === 1) missed = true;
+  const baseDamage = Math.max(0, log.xp / 100);
+  let multiplier = 1;
+  let additiveBonus = 0;
+  const skillEntries = Array.isArray(log.skills) ? log.skills : [];
+  const statEntries = Array.isArray(log.stats) ? log.stats : [];
+  skillEntries.forEach(sk => {
+    if (m.weak.includes(sk.name)) {
+      additiveBonus += state.player.skills[sk.name] || 0;
+      multiplier *= 1.15;
+    }
+    if (m.resist.includes(sk.name)) {
+      multiplier *= 0.85;
+    }
   });
-  log.stats.forEach(st => {
-    if (m.weak.includes(st.name)) bonus += state.player.mainstats[st.name] || 0;
-    if (m.resist.includes(st.name)) dmg *= 0.85;
-    if (m.weak.includes(st.name)) dmg *= 1.15;
+  statEntries.forEach(st => {
+    if (m.weak.includes(st.name)) {
+      additiveBonus += state.player.mainstats[st.name] || 0;
+      multiplier *= 1.15;
+    }
+    if (m.resist.includes(st.name)) {
+      multiplier *= 0.85;
+    }
   });
-  dmg += bonus;
-  let crit = 0;
-  if (weakHit && Math.random() < 0.1) {
-    crit = dmg;
-    dmg *= 2;
+  const baseValue = Math.floor(baseDamage);
+  const damageAfterMultiplier = baseDamage * multiplier;
+  const multiplierDelta = Math.floor(damageAfterMultiplier - baseDamage);
+  const bonusValue = Math.floor(additiveBonus);
+  let totalBeforeCrit = Math.max(0, damageAfterMultiplier + additiveBonus);
+  let critExtra = 0;
+  let totalDamage = Math.floor(totalBeforeCrit);
+  if (!missed && roll === dieSides) {
+    critExtra = totalDamage;
+    totalDamage *= 2;
   }
-  if (m.ability === "heal5" && Math.random() < 0.05) {
-    m.hp = Math.min(m.maxHp, m.hp + Math.floor(dmg));
-    state.dungeon.chat.push(`${state.player.name} attacks! result: ${log.xp} XP base, damage -${Math.floor(dmg)} (crit ${Math.floor(crit)}) HP ${m.hp}/${m.maxHp}`);
+  const lines = [`Dice Roll (d${dieSides}): ${rollHistory.join(" → ")}`];
+  if (missed) {
+    lines.push("Attack Missed!");
+    lines.push(`Monster HP: ${m.hp}/${m.maxHp}`);
+    addDungeonChatBlock(`${state.player.name} Attacks`, lines);
+    attackSound.play();
+    state.dungeon.usedLogs.push(logId);
+    save();
+    renderDungeon();
+    return;
+  }
+  let abilityTriggered = false;
+  if (m.ability === "heal5" && totalDamage > 0 && Math.random() < 0.05) {
+    abilityTriggered = true;
+    m.hp = Math.min(m.maxHp, m.hp + totalDamage);
+    critExtra = 0;
+    totalDamage = 0;
   } else {
-    m.hp = Math.max(0, m.hp - Math.floor(dmg));
-    state.dungeon.chat.push(`${state.player.name} attacks! result: ${log.xp} XP base, damage ${Math.floor(dmg)} (crit ${Math.floor(crit)}) HP ${m.hp}/${m.maxHp}`);
+    m.hp = Math.max(0, m.hp - totalDamage);
   }
+  lines.push(`Base Damage: ${baseValue}`);
+  lines.push(`Multiplier Impact: ${multiplierDelta >= 0 ? "+" : ""}${multiplierDelta}`);
+  lines.push(`Bonus Damage: ${bonusValue >= 0 ? "+" : ""}${bonusValue}`);
+  lines.push(`Critical Hit: +${critExtra}`);
+  lines.push(`Total Damage: ${totalDamage}`);
+  if (abilityTriggered) {
+    lines.push(`${m.name} absorbs the blow and heals instead!`);
+  }
+  lines.push(`Monster HP: ${m.hp}/${m.maxHp}`);
+  addDungeonChatBlock(`${state.player.name} Attacks`, lines);
   attackSound.play();
   state.dungeon.usedLogs.push(logId);
   if (m.hp <= 0) {
-    state.dungeon.chat.push(`${m.name} defeated!`);
     const base = m.baseHp || monsterBaseHP(m.tier);
-    const xpGain = (m.rewardXp || 0) + (m.maxHp - base) * 2;
+    const xpGain = Math.max(0, (m.rewardXp || 0) + (m.maxHp - base) * 2);
     const goldGain = m.rewardGold || 0;
     addXP(xpGain);
     state.player.gold += goldGain;
-    state.dungeon.chat.push(`Rewards: ${xpGain} XP, ${goldGain} Gold`);
-    state.dungeon.currentRun++;
+    const newRun = state.dungeon.currentRun + 1;
+    addDungeonChatBlock(`${m.name} Defeated`, [
+      `Rewards Earned: ${xpGain} XP`,
+      `Gold Found: ${goldGain}`,
+      `Run Total: ${newRun}`
+    ]);
+    addInboxMessage({
+      title: `${m.name} Defeated`,
+      body: `Rewards Earned: ${xpGain} XP\nGold Found: ${goldGain}\nRun Total: ${newRun}`,
+      source: "dungeon"
+    });
+    state.dungeon.currentRun = newRun;
     if (state.dungeon.currentRun > state.dungeon.highestRun)
       state.dungeon.highestRun = state.dungeon.currentRun;
     state.dungeon.current = null;
@@ -636,6 +1405,7 @@ function attackDungeon(logId) {
 }
 function renderDungeon() {
   if (!state.dungeon) return;
+  pruneDungeonChat();
   const d = state.dungeon;
   el("dungeon-highest").textContent = d.highestRun || 0;
   el("dungeon-current").textContent = d.currentRun || 0;
@@ -645,7 +1415,25 @@ function renderDungeon() {
   const actDiv = el("dungeon-actions");
   if (dungeonTimer) clearInterval(dungeonTimer);
   mDiv.innerHTML = "";
-  logDiv.innerHTML = `<h3 class="font-semibold mb-1 text-sm">Dungeon Chat</h3>` + d.chat.map(c => `<div>${c}</div>`).join("");
+  logDiv.innerHTML = "";
+  const chatFragment = document.createDocumentFragment();
+  d.chat.forEach(entry => {
+    const block = document.createElement("div");
+    block.className = "chat-block";
+    const title = document.createElement("span");
+    title.className = "chat-line font-semibold";
+    title.textContent = entry.title;
+    block.appendChild(title);
+    (entry.lines || []).forEach(text => {
+      const span = document.createElement("span");
+      span.className = "chat-line";
+      span.textContent = text;
+      block.appendChild(span);
+    });
+    chatFragment.appendChild(block);
+  });
+  logDiv.appendChild(chatFragment);
+  logDiv.scrollTop = logDiv.scrollHeight;
   qDiv.innerHTML = "";
   actDiv.innerHTML = "";
   if (!d.current) {
@@ -663,7 +1451,7 @@ function renderDungeon() {
   function upd() {
     const diff = m.spawn + m.limit * 24 * 60 * 60 * 1000 - Date.now();
     if (diff <= 0) {
-      d.chat.push("Failure!");
+      addDungeonChatBlock(`${m.name} Escapes`, ["Time limit reached."]);
       d.current = null;
       d.currentRun = 0;
       save();
@@ -700,7 +1488,7 @@ function renderDungeon() {
   sBtn.className = "px-4 py-2 rounded bg-rose-700 hover:bg-rose-600";
   sBtn.textContent = "Surrender";
   sBtn.onclick = () => {
-    d.chat.push("You surrendered.");
+    addDungeonChatBlock("Retreat", ["You surrendered."]);
     d.current = null;
     d.currentRun = 0;
     save();
@@ -850,10 +1638,13 @@ function show(view) {
   [
     "view-quests",
     "view-stats",
+    "view-status",
     "view-skills",
     "view-tags",
     "view-shop",
     "view-inventory",
+    "view-inbox",
+    "view-notes",
     "view-log",
     "view-settings",
     "view-dungeon"
@@ -934,13 +1725,14 @@ function completeQuest(id) {
     time: q.time,
     stats: statEntries,
     skills: skillEntries,
-    tag: q.tag,
+    tags: q.tags ? q.tags.slice() : [],
     notes: q.notes,
     repeat: q.repeat,
     anti: q.anti,
     due: q.due,
     gold,
-    completedAt
+    completedAt,
+    noteColor: q.noteColor || "#0ea5e9"
   };
   state.log.push(logEntry);
   if (state.log.length > 200) state.log.shift();
@@ -1016,8 +1808,17 @@ function deleteTag(id) {
   if (idx === -1) return;
   state.tags.splice(idx, 1);
   state.quests.forEach(q => {
-    if (q.tag === id) q.tag = "";
+    if (Array.isArray(q.tags)) q.tags = q.tags.filter(t => t !== id);
   });
+  state.log.forEach(l => {
+    if (Array.isArray(l.tags)) l.tags = l.tags.filter(t => t !== id);
+  });
+  state.notes.forEach(n => {
+    if (Array.isArray(n.tags)) n.tags = n.tags.filter(t => t !== id);
+  });
+  state.settings.customFilterTags = state.settings.customFilterTags.filter(t => t !== id);
+  if (questFilterSelection === id) questFilterSelection = QUEST_FILTER_ALL;
+  if (noteFilterSelection === id) noteFilterSelection = QUEST_FILTER_ALL;
   save();
   render();
 }
@@ -1194,11 +1995,12 @@ function undoQuest(logId) {
       xp: l.xp,
       stats: l.stats ? l.stats.map(s => ({ name: s.name, mult: 1 })) : (l.stat ? [{ name: l.stat, mult: 1 }] : []),
       skills: l.skills ? l.skills.map(s => ({ name: s.name, mult: 1 })) : (l.skill ? [{ name: l.skill, mult: 1 }] : []),
-      tag: l.tag,
+      tags: l.tags ? l.tags.slice() : [],
       notes: l.notes,
       repeat: l.repeat,
       anti: l.anti,
-      due: l.due
+      due: l.due,
+      noteColor: l.noteColor || "#0ea5e9"
     });
   }
   save();
@@ -1225,10 +2027,11 @@ function startEdit(id) {
   el("q-stat-adjust").checked = (q.stats || []).some(s => s.mult !== 1);
   document.querySelectorAll(".q-stat-mult").forEach(i => i.classList.toggle("hidden", !el("q-stat-adjust").checked));
   document.querySelectorAll(".q-stat").forEach(populateStatOptions);
-  el("q-tag").value = q.tag || "";
+  renderTagSelection(el("q-tag-options"), q.tags || [], "q-tag-option");
   el("q-due").value = q.due || "";
   el("q-repeat").checked = q.repeat || false;
   el("q-notes").value = q.notes || "";
+  el("q-note-color").value = q.noteColor || "#0ea5e9";
   el("q-anti").classList.toggle("font-bold", antiQuest);
 }
   function render() {
@@ -1293,6 +2096,14 @@ function startEdit(id) {
     renderDevMonsters();
     renderDevItemAudio();
     renderDungeon();
+    renderInbox();
+    updateInboxBadge();
+    renderCustomFilterSettings();
+    renderStatusPage();
+    renderQuestFilters();
+    renderNoteFilters();
+    renderQuestList();
+    renderNotes();
     el("q-stats").innerHTML = "";
     addStatRow();
     el("q-stat-adjust").checked = false;
@@ -1301,66 +2112,15 @@ function startEdit(id) {
     el("q-adjust").checked = false;
     document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
     document.querySelectorAll(".q-stat").forEach(populateStatOptions);
-  el("q-tag").innerHTML =
-    '<option value="">None</option>' +
-    state.tags
-      .slice()
-      .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-      .map(t => `<option value="${t.id}">${t.name}</option>`)
-      .join("");
-  const qlist = el("quest-list");
-  qlist.innerHTML = "";
-  if (state.quests.length === 0) {
-    qlist.innerHTML = '<div class="text-sm opacity-70">No quests yet.</div>';
-  } else {
-    state.quests
-      .slice()
-      .sort((a, b) => {
-        const ta = state.tags.find(t => t.id === a.tag)?.priority ?? Infinity;
-        const tb = state.tags.find(t => t.id === b.tag)?.priority ?? Infinity;
-        return ta - tb;
-      })
-      .forEach(q => {
-      const node = el("tpl-quest").content.cloneNode(true);
-      node.querySelector(".q-title").textContent = q.title;
-      node.querySelector(".q-xp").textContent = q.xp >= 0 ? `+${q.xp}` : q.xp;
-      const statSpan = node.querySelector(".q-tag-stat");
-      if (q.stats && q.stats.length) {
-        statSpan.textContent = q.stats.map(s => s.name).join(", ");
-        statSpan.classList.remove("hidden");
-      } else {
-        statSpan.classList.add("hidden");
-      }
-      if (q.skills && q.skills.length) {
-        const s = node.querySelector(".q-tag-skill");
-        s.textContent = q.skills.map(sk => sk.name).join(", ");
-        s.classList.remove("hidden");
-      }
-      if (q.tag) {
-        const t = state.tags.find(t => t.id === q.tag);
-        if (t) {
-          const tg = node.querySelector(".q-tag");
-          tg.textContent = t.name;
-          tg.style.backgroundColor = t.color;
-          tg.classList.remove("hidden");
-        }
-      }
-      if (q.anti) {
-        node.querySelector(".q-card").classList.add("bg-rose-900");
-      }
-      if (q.due) {
-        const d = new Date(q.due);
-        node.querySelector(".q-due").textContent = `Due: ${d.toLocaleString()}`;
-      } else {
-        node.querySelector(".q-due").classList.add("hidden");
-      }
-      node.querySelector(".q-complete").onclick = () => confirmQuest(q.id);
-      node.querySelector(".q-delete").onclick = () => deleteQuest(q.id);
-      node.querySelector(".q-edit").onclick = () => startEdit(q.id);
-      node.querySelector(".q-notes").textContent = q.notes;
-      qlist.appendChild(node);
-    });
-  }
+    if (!editingId) {
+      renderTagSelection(el("q-tag-options"), [], "q-tag-option");
+      el("q-note-color").value = "#0ea5e9";
+    }
+    if (!editingNoteId) {
+      renderTagSelection(el("note-tag-options"), [], "note-tag-option");
+      el("note-color").value = "#0ea5e9";
+      el("btn-save-note").textContent = "Save Entry";
+    }
   const statsList = el("stats-list");
   statsList.innerHTML =
     '<canvas id="stats-chart"></canvas><table id="stats-table" class="mt-4 w-full text-sm"></table>';
@@ -1527,7 +2287,7 @@ function startEdit(id) {
         logList.appendChild(node);
       });
   }
-  el("btn-submit-quest").textContent = editingId ? "Save Changes" : "Add Quest";
+  el("btn-submit-quest").textContent = editingId ? "Save Edit" : "Add Quest";
   updateStreakTimer();
 }
 // Events
@@ -1540,15 +2300,18 @@ el("edit-name").onclick = () => {
     }
   });
 };
-el("btn-open-quests").onclick = () => show("view-quests");
+el("btn-open-quests").onclick = () => { show("view-quests"); renderQuestFilters(); renderQuestList(); };
 el("btn-open-stats").onclick = () => show("view-stats");
+el("btn-open-status").onclick = () => { show("view-status"); renderStatusPage(); };
 el("btn-open-skills").onclick = () => show("view-skills");
 el("btn-open-tags").onclick = () => show("view-tags");
 el("btn-open-shop").onclick = () => show("view-shop");
 el("btn-open-inventory").onclick = () => show("view-inventory");
+el("btn-open-notes").onclick = () => { show("view-notes"); renderNoteFilters(); renderNotes(); };
 el("btn-open-log").onclick = () => show("view-log");
 el("btn-open-settings").onclick = () => show("view-settings");
 el("btn-open-dungeon").onclick = () => { show("view-dungeon"); renderDungeon(); };
+el("btn-open-inbox").onclick = () => openInbox();
 el("btn-show-form").onclick = () => {
   editingId = null;
   antiQuest = false;
@@ -1562,6 +2325,8 @@ el("btn-show-form").onclick = () => {
   el("q-stat-adjust").checked = false;
   document.querySelectorAll(".q-stat").forEach(populateStatOptions);
   document.querySelectorAll(".q-skill").forEach(populateSkillOptions);
+  renderTagSelection(el("q-tag-options"), [], "q-tag-option");
+  el("q-note-color").value = "#0ea5e9";
   el("quest-form").classList.toggle("hidden");
 };
 el("quest-form").onsubmit = e => {
@@ -1594,11 +2359,12 @@ el("quest-form").onsubmit = e => {
     xp,
     stats,
     skills,
-    tag: el("q-tag").value || "",
+    tags: Array.from(el("q-tag-options").querySelectorAll(".q-tag-option:checked")).map(i => i.value),
     due: el("q-due").value || "",
     repeat: el("q-repeat").checked,
     anti: antiQuest,
-    notes: el("q-notes").value
+    notes: el("q-notes").value,
+    noteColor: el("q-note-color").value || "#0ea5e9"
   };
   const existing = state.quests.findIndex(q => q.id === editingId);
   if (existing !== -1) state.quests[existing] = q; else state.quests.push(q);
@@ -1608,6 +2374,58 @@ el("quest-form").onsubmit = e => {
   render();
   el("quest-form").reset();
   el("quest-form").classList.add("hidden");
+};
+el("btn-show-note-form").onclick = () => {
+  editingNoteId = null;
+  el("note-form").reset();
+  renderTagSelection(el("note-tag-options"), [], "note-tag-option");
+  el("note-color").value = "#0ea5e9";
+  el("note-form").classList.toggle("hidden");
+  el("btn-save-note").textContent = "Save Entry";
+};
+el("btn-cancel-note").onclick = () => {
+  editingNoteId = null;
+  el("note-form").reset();
+  el("note-form").classList.add("hidden");
+  renderTagSelection(el("note-tag-options"), [], "note-tag-option");
+  el("note-color").value = "#0ea5e9";
+  el("btn-save-note").textContent = "Save Entry";
+};
+el("note-form").onsubmit = e => {
+  e.preventDefault();
+  const title = el("note-title").value.trim();
+  const body = el("note-body").value.trim();
+  const color = el("note-color").value || "#0ea5e9";
+  const tags = Array.from(el("note-tag-options").querySelectorAll(".note-tag-option:checked")).map(i => i.value);
+  const now = Date.now();
+  if (editingNoteId) {
+    const note = state.notes.find(n => n.id === editingNoteId);
+    if (note) {
+      note.title = title || "Untitled";
+      note.body = body;
+      note.color = color;
+      note.tags = tags;
+      note.updatedAt = now;
+    }
+  } else {
+    state.notes.push({
+      id: crypto.randomUUID(),
+      title: title || "Untitled",
+      body,
+      color,
+      tags,
+      updatedAt: now
+    });
+  }
+  editingNoteId = null;
+  save();
+  renderNotes();
+  renderNoteFilters();
+  el("note-form").reset();
+  el("note-form").classList.add("hidden");
+  renderTagSelection(el("note-tag-options"), [], "note-tag-option");
+  el("note-color").value = "#0ea5e9";
+  el("btn-save-note").textContent = "Save Entry";
 };
 el("btn-add-skill-row").onclick = () => addSkillRow();
 el("q-adjust").onchange = () => {
@@ -1633,6 +2451,10 @@ el("dev-shop-img").onchange = e => {
     save();
   };
   reader.readAsDataURL(file);
+};
+el("btn-save-assets").onclick = () => {
+  save();
+  infoModal("Custom assets saved.");
 };
 el("btn-show-shop-form").onclick = () => {
   editingShopId = null;
