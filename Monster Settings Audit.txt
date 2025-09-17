@@ -1,5 +1,8 @@
 Monster Settings Audit
 
+Add Status page. Will show any Buffs and Debuffs. Make sure that Dungeon Chat displays all Rewards after completing monster. ensure monster effects are stated in chat when they occur.   After the first item explanation, assume all items of the same name have the same effect. Do not add these Items to the Shop.  Attack and Quest-attack is used interchangeably. For Each HP point above Base Tier Health,  Add 2XP to Rewards For Each HP point below Base Tier Health, Remove 2XP from Rewards Do not show this math in Quest Chat. Just show Total XP Earned.  Each Quest that is worth 1000xp or higher gets to roll a 20 sided die. Generate a number between 1-20 and show it as 'Dice Roll'. If it rolls on 1 always miss attack. if it lands on 20, add all damage then at end multiply by 2. Show Extra Damage as 'Critical Hit' on the Dungeon Chat.
+
+
 Clair Obscur:  Chroma Absorb; 5% chance for player to heal (5% chance to convert damage into health gain.).  Flying; 15% chance for attacks miss him.  Endgame; Only 15 days on Monster Timer
 Base Rewards: 15,000 XP, 2,000 Gold, 
 Drop list and rates
@@ -129,4 +132,5 @@ Guaranteed Rewards: 1,000 XP   75 Gold
 
 -----
   Goblin Gang;  
+
 Guaranteed Rewards: 2,100 XP   100 Gold
