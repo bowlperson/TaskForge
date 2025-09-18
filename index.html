@@ -197,8 +197,9 @@
                 <label class="text-sm opacity-80">Notes</label>
                 <textarea id="q-notes" class="w-full px-3 py-2 rounded bg-slate-800" rows="2"></textarea>
               </div>
-              <div class="md:col-span-7 sm:col-span-2 flex gap-2">
+              <div class="md:col-span-7 sm:col-span-2 flex gap-2 flex-wrap">
                 <button id="btn-submit-quest" class="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600">Add Quest</button>
+                <button type="button" id="btn-quest-ungrey" class="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 hidden" title="Clears today's completion timestamp so the quest is active again.">Ungrey Quest</button>
                 <button type="button" id="btn-clear-done" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700">Clear Completed</button>
               </div>
             </form>
@@ -612,6 +613,7 @@ if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000) {
 }
 let statsChart = null;
 let editingId = null;
+let editingClearCompletion = false;
 let editingShopId = null;
 let antiQuest = false;
 let editingNoteId = null;
@@ -676,6 +678,19 @@ function hexToRgba(hex, alpha = 0.2) {
   const g = (num >> 8) & 255;
   const b = num & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function setUngreyButtonState({ visible = false, active = false } = {}) {
+  const btn = el("btn-quest-ungrey");
+  if (!btn) return;
+  btn.classList.toggle("hidden", !visible);
+  btn.classList.toggle("bg-emerald-700", active);
+  btn.classList.toggle("hover:bg-emerald-600", active);
+  btn.classList.toggle("bg-slate-700", !active);
+  btn.classList.toggle("hover:bg-slate-600", !active);
+  btn.textContent = active ? "Will Ungrey on Save (click to undo)" : "Ungrey Quest";
+  btn.dataset.active = active ? "true" : "false";
+  btn.setAttribute("aria-pressed", active ? "true" : "false");
 }
 
 function addStatus(status) {
@@ -2480,6 +2495,7 @@ function startEdit(id) {
   const q = state.quests.find(q => q.id === id);
   if (!q) return;
   editingId = id;
+  editingClearCompletion = false;
   antiQuest = q.anti || false;
   el("quest-form").classList.remove("hidden");
   el("q-title").value = q.title;
@@ -2505,6 +2521,8 @@ function startEdit(id) {
   el("q-notes").value = q.notes || "";
   el("q-note-color").value = q.noteColor || "#0ea5e9";
   el("q-anti").classList.toggle("font-bold", antiQuest);
+  const shouldOfferUngrey = Boolean(q.lastCompletedAt && q.lastCompletedAt >= getDayBoundaryStart());
+  setUngreyButtonState({ visible: shouldOfferUngrey, active: false });
   el("btn-submit-quest").textContent = "Save";
 }
   function render() {
@@ -2795,6 +2813,7 @@ el("btn-open-inbox").onclick = () => openInbox();
 el("btn-show-form").onclick = () => {
   editingId = null;
   antiQuest = false;
+  editingClearCompletion = false;
   el("q-anti").classList.remove("font-bold");
   el("quest-form").reset();
   el("q-skills").innerHTML = "";
@@ -2810,9 +2829,18 @@ el("btn-show-form").onclick = () => {
   el("q-repeat").checked = false;
   el("q-repeat-frequency").value = "daily";
   el("q-repeat-frequency").classList.add("hidden");
+  setUngreyButtonState({ visible: false, active: false });
   el("btn-submit-quest").textContent = "Add Quest";
   el("quest-form").classList.toggle("hidden");
 };
+const ungreyBtn = el("btn-quest-ungrey");
+if (ungreyBtn) {
+  ungreyBtn.onclick = () => {
+    if (ungreyBtn.classList.contains("hidden")) return;
+    editingClearCompletion = !editingClearCompletion;
+    setUngreyButtonState({ visible: true, active: editingClearCompletion });
+  };
+}
 el("quest-form").onsubmit = e => {
   e.preventDefault();
   const diff = +el("q-diff").value;
@@ -2840,6 +2868,10 @@ el("quest-form").onsubmit = e => {
   const dueValue = (el("q-due").value || "").trim();
   const questId = editingId || crypto.randomUUID();
   const existingQuest = state.quests.find(q => q.id === editingId);
+  let lastCompletedAt = existingQuest ? existingQuest.lastCompletedAt || null : null;
+  if (editingClearCompletion) {
+    lastCompletedAt = null;
+  }
   const q = {
     id: questId,
     title: el("q-title").value || "Untitled",
@@ -2855,7 +2887,7 @@ el("quest-form").onsubmit = e => {
     anti: antiQuest,
     notes: el("q-notes").value,
     noteColor: el("q-note-color").value || "#0ea5e9",
-    lastCompletedAt: existingQuest ? existingQuest.lastCompletedAt || null : null,
+    lastCompletedAt,
     reminderTracker: existingQuest && existingQuest.reminderTracker
       ? { ...existingQuest.reminderTracker }
       : {}
@@ -2867,10 +2899,12 @@ el("quest-form").onsubmit = e => {
   if (existing !== -1) state.quests[existing] = q; else state.quests.push(q);
   editingId = null;
   antiQuest = false;
+  editingClearCompletion = false;
   save();
   render();
   el("quest-form").reset();
   el("quest-form").classList.add("hidden");
+  setUngreyButtonState({ visible: false, active: false });
 };
 el("btn-show-note-form").onclick = () => {
   editingNoteId = null;
