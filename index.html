@@ -39,6 +39,26 @@
       line-height: 1.2;
       word-break: break-word;
     }
+    .q-card.completed-today {
+      opacity: 0.55;
+      filter: saturate(0.45);
+      transition: opacity 0.2s ease, filter 0.2s ease;
+    }
+    .q-card.completed-today:hover {
+      opacity: 0.7;
+      filter: saturate(0.6);
+    }
+    .inbox-section-label {
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.65rem;
+      color: rgba(148, 163, 184, 0.75);
+      margin-bottom: 0.3rem;
+    }
+    .inbox-card-pinned {
+      border: 1px solid rgba(14, 165, 233, 0.45);
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen theme-default">
@@ -159,11 +179,18 @@
                 <input id="q-note-color" type="color" value="#0ea5e9" class="w-full h-10 p-0 rounded bg-slate-800 border-0" />
               </div>
               <div>
-                <label class="text-sm opacity-80">Due</label>
-                <input id="q-due" type="datetime-local" class="w-full px-3 py-2 rounded bg-slate-800" />
+                <label class="text-sm opacity-80">Due Date</label>
+                <input id="q-due" type="date" class="w-full px-3 py-2 rounded bg-slate-800" />
               </div>
-              <div class="sm:col-span-2 md:col-span-7 flex items-center gap-4">
+              <div class="sm:col-span-2 md:col-span-7 flex flex-wrap items-center gap-4">
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="q-repeat" class="rounded"> Repeatable</label>
+                <select id="q-repeat-frequency" class="px-3 py-2 rounded bg-slate-800 text-xs hidden">
+                  <option value="daily">Daily</option>
+                  <option value="bi-daily">Bi-Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="bi-weekly">Bi-Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
                 <span id="q-anti" class="text-sm cursor-pointer text-rose-400">Anti Quest</span>
               </div>
               <div class="md:col-span-7 sm:col-span-2">
@@ -294,6 +321,20 @@
               </div>
             </div>
             <div class="mb-4">
+              <h3 class="font-semibold mb-2">Notifications</h3>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm">Inbox Push Notifications</span>
+                <button id="btn-toggle-notifications" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm"></button>
+              </div>
+              <div id="notification-status" class="text-xs opacity-70 mt-2"></div>
+            </div>
+            <div class="mb-4">
+              <h3 class="font-semibold mb-2">Daily Routine</h3>
+              <label class="block text-sm opacity-80">Daily Reset Time</label>
+              <input id="daily-reset-time" type="time" value="04:00" class="mt-1 w-full px-3 py-2 rounded bg-slate-800" />
+              <p class="text-xs opacity-70 mt-2">Controls when reminders and the Daily Mail refresh.</p>
+            </div>
+            <div class="mb-4">
               <h3 class="font-semibold mb-2">Save Data</h3>
               <div class="flex gap-2">
                 <button id="btn-export" class="flex-1 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Export</button>
@@ -349,6 +390,7 @@
       </div>
       <div class="mt-1 flex flex-wrap gap-1 q-tag-pills"></div>
       <div class="q-due text-xs opacity-70 mt-1"></div>
+      <div class="q-last-completed text-xs opacity-60 mt-1 hidden"></div>
       <p class="q-notes text-sm opacity-85 mt-2"></p>
       <div class="mt-3 flex gap-2">
         <button class="q-complete flex-1 px-3 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-sm">Completed</button>
@@ -414,7 +456,7 @@ const DEFAULT_SAVE = {
   streak: { count: 0, last: 0 },
   notes: [],
   inbox: [],
-  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {}, customFilterTags: [] },
+  settings: { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {}, customFilterTags: [], notificationsEnabled: false, dailyResetTime: "04:00" },
   dungeon: { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], recentMonsters: [], activeMonsterKey: null }
 };
 const el = id => document.getElementById(id);
@@ -444,10 +486,12 @@ state.inbox = state.inbox
     body: msg.body || "",
     timestamp: msg.timestamp || Date.now(),
     read: msg.read !== undefined ? !!msg.read : true,
-    source: msg.source || "system"
+    source: msg.source || "system",
+    pinned: !!msg.pinned,
+    dayKey: msg.dayKey || null
   }));
 if (!state.streak) state.streak = { count: 0, last: 0 };
-if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {}, customFilterTags: [] };
+if (!state.settings) state.settings = { levelSound: 0, audioCollapsed: false, volume: 1, theme: "default", titles: {}, monsterImages: {}, defaultShopImg: "", itemAudio: {}, customFilterTags: [], notificationsEnabled: false, dailyResetTime: "04:00" };
 if (state.settings.volume === undefined) state.settings.volume = 1;
 if (!state.settings.theme) state.settings.theme = "default";
 if (!state.settings.titles) state.settings.titles = {};
@@ -455,6 +499,8 @@ if (!state.settings.monsterImages) state.settings.monsterImages = {};
 if (state.settings.defaultShopImg === undefined) state.settings.defaultShopImg = "";
 if (!state.settings.itemAudio) state.settings.itemAudio = {};
 if (!state.settings.customFilterTags) state.settings.customFilterTags = [];
+if (state.settings.notificationsEnabled === undefined) state.settings.notificationsEnabled = false;
+if (!state.settings.dailyResetTime) state.settings.dailyResetTime = "04:00";
 if (!state.player.statuses) state.player.statuses = [];
 if (!state.dungeon) state.dungeon = { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], recentMonsters: [], activeMonsterKey: null };
 if (!Array.isArray(state.dungeon.chat)) state.dungeon.chat = [];
@@ -509,6 +555,30 @@ state.quests.forEach(q => {
     }
   }
   if (!q.noteColor) q.noteColor = "#0ea5e9";
+  if (q.due) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(q.due)) {
+      q.due = q.due;
+    } else {
+      const parsed = new Date(q.due);
+      if (!Number.isNaN(parsed.getTime())) {
+        q.due = `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`;
+      } else {
+        q.due = "";
+      }
+    }
+  } else {
+    q.due = "";
+  }
+  if (q.repeat && !q.repeatFrequency) q.repeatFrequency = "daily";
+  if (!q.repeat) q.repeatFrequency = null;
+  if (q.lastCompletedAt !== undefined) {
+    q.lastCompletedAt = q.lastCompletedAt ? +q.lastCompletedAt : null;
+  } else {
+    q.lastCompletedAt = null;
+  }
+  if (!q.reminderTracker || typeof q.reminderTracker !== "object") {
+    q.reminderTracker = {};
+  }
 });
 state.log.forEach(l => {
   if (l.stat && !l.stats) {
@@ -526,6 +596,15 @@ state.log.forEach(l => {
     }
   }
   if (l.noteColor === undefined) l.noteColor = null;
+  if (l.repeatFrequency === undefined) l.repeatFrequency = null;
+  if (l.previousDue === undefined) l.previousDue = l.due || "";
+  if (l.previousLastCompletedAt === undefined) l.previousLastCompletedAt = null;
+  if (!l.previousReminderTracker || typeof l.previousReminderTracker !== "object") l.previousReminderTracker = null;
+  if (l.lastCompletedAt !== undefined) {
+    l.lastCompletedAt = l.lastCompletedAt ? +l.lastCompletedAt : null;
+  } else {
+    l.lastCompletedAt = null;
+  }
 });
 if (state.streak.last && Date.now() - state.streak.last > 30 * 60 * 60 * 1000) {
   state.streak.count = 0;
@@ -538,6 +617,8 @@ let antiQuest = false;
 let editingNoteId = null;
 const QUEST_FILTER_ALL = "__all";
 const QUEST_FILTER_CUSTOM = "__custom";
+const DAILY_MAIL_ID = "daily-mail";
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 let questFilterSelection = QUEST_FILTER_ALL;
 let noteFilterSelection = QUEST_FILTER_ALL;
 const goldSound = new Audio("Sound Effects/goldcoins.mp3");
@@ -805,6 +886,7 @@ function renderQuestList() {
   const qlist = el("quest-list");
   if (!qlist) return;
   qlist.innerHTML = "";
+  const dayBoundary = getDayBoundaryStart();
   const quests = state.quests
     .slice()
     .sort((a, b) => {
@@ -822,6 +904,7 @@ function renderQuestList() {
   }
   quests.forEach(q => {
     const node = el("tpl-quest").content.cloneNode(true);
+    const card = node.querySelector(".q-card");
     node.querySelector(".q-title").textContent = q.title;
     node.querySelector(".q-xp").textContent = q.xp >= 0 ? `+${q.xp}` : q.xp;
     const statSpan = node.querySelector(".q-tag-stat");
@@ -851,14 +934,26 @@ function renderQuestList() {
     });
     tagWrap.classList.toggle("hidden", !tagWrap.childElementCount);
     if (q.anti) {
-      node.querySelector(".q-card").classList.add("bg-rose-900");
+      card.classList.add("bg-rose-900");
     }
+    const dueEl = node.querySelector(".q-due");
     if (q.due) {
-      const d = new Date(q.due);
-      node.querySelector(".q-due").textContent = `Due: ${d.toLocaleString()}`;
-      node.querySelector(".q-due").classList.remove("hidden");
+      const dueText = formatQuestDue(q.due);
+      dueEl.textContent = dueText ? `Due: ${dueText}` : "";
+      dueEl.classList.toggle("hidden", !dueText);
     } else {
-      node.querySelector(".q-due").classList.add("hidden");
+      dueEl.classList.add("hidden");
+    }
+    const lastEl = node.querySelector(".q-last-completed");
+    if (q.lastCompletedAt) {
+      const completed = new Date(q.lastCompletedAt);
+      lastEl.textContent = `Last completed: ${completed.toLocaleString()}`;
+      lastEl.classList.remove("hidden");
+    } else {
+      lastEl.classList.add("hidden");
+    }
+    if (q.lastCompletedAt && q.lastCompletedAt >= dayBoundary) {
+      card.classList.add("completed-today");
     }
     const notesEl = node.querySelector(".q-notes");
     notesEl.textContent = q.notes || "";
@@ -1064,26 +1159,37 @@ function addDungeonChatBlock(title, lines = []) {
   pruneDungeonChat();
 }
 
-function addInboxMessage({ title, body, source = "system" }) {
+function addInboxMessage({ id, title, body, source = "system", pinned = false, notify = true, timestamp = Date.now(), dayKey = null }) {
   if (!Array.isArray(state.inbox)) state.inbox = [];
   const entry = {
-    id: crypto.randomUUID(),
+    id: id || crypto.randomUUID(),
     title: title || "Message",
     body: body || "",
     source,
-    timestamp: Date.now(),
-    read: false
+    timestamp,
+    read: pinned ? true : false,
+    pinned,
+    dayKey
   };
-  state.inbox.push(entry);
-  if (state.inbox.length > 200) {
-    state.inbox = state.inbox.slice(-200);
+  const existingIdx = state.inbox.findIndex(msg => msg.id === entry.id);
+  if (existingIdx !== -1) {
+    state.inbox[existingIdx] = { ...state.inbox[existingIdx], ...entry };
+  } else {
+    state.inbox.push(entry);
+    if (state.inbox.length > 200) {
+      state.inbox = state.inbox.slice(-200);
+    }
   }
   save();
   updateInboxBadge();
+  if (!pinned && notify) {
+    sendNotification(entry.title, entry.body);
+  }
   const view = el("view-inbox");
   if (view && !view.classList.contains("hidden")) {
     renderInbox();
   }
+  return entry.id;
 }
 
 function renderInbox() {
@@ -1094,37 +1200,246 @@ function renderInbox() {
     list.innerHTML = '<div class="text-xs opacity-70">No messages yet.</div>';
     return;
   }
-  state.inbox
+  const messages = state.inbox
     .slice()
-    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-    .forEach(msg => {
-      const card = document.createElement("div");
-      card.className = "rounded-xl bg-slate-900/40 p-3 ring-1 ring-white/10";
-      if (!msg.read || msg.justOpened) {
-        card.classList.add("ring-emerald-500/50");
-      }
-      const header = document.createElement("div");
-      header.className = "flex items-start justify-between mb-2";
-      const titleWrap = document.createElement("div");
-      titleWrap.innerHTML = `<div class=\"font-semibold\">${msg.title}</div><div class=\"text-xs opacity-70\">${new Date(msg.timestamp || Date.now()).toLocaleString()}</div>`;
-      header.appendChild(titleWrap);
-      const source = document.createElement("span");
-      source.className = "text-xs uppercase tracking-wide opacity-60";
-      source.textContent = msg.source || "system";
-      header.appendChild(source);
-      card.appendChild(header);
-      const body = document.createElement("div");
-      body.className = "whitespace-pre-wrap text-sm";
-      body.textContent = msg.body || "";
-      card.appendChild(body);
-      list.appendChild(card);
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  const pinned = messages.filter(msg => msg.pinned);
+  const regular = messages.filter(msg => !msg.pinned);
+  const buildCard = msg => {
+    const card = document.createElement("div");
+    card.className = "rounded-xl bg-slate-900/40 p-3 ring-1 ring-white/10";
+    if (!msg.read || msg.justOpened) {
+      card.classList.add("ring-emerald-500/50");
+    }
+    if (msg.pinned) {
+      card.classList.add("inbox-card-pinned");
+    }
+    const header = document.createElement("div");
+    header.className = "flex items-start justify-between mb-2";
+    const titleWrap = document.createElement("div");
+    titleWrap.innerHTML = `<div class=\"font-semibold\">${msg.title}</div><div class=\"text-xs opacity-70\">${new Date(msg.timestamp || Date.now()).toLocaleString()}</div>`;
+    header.appendChild(titleWrap);
+    const source = document.createElement("span");
+    source.className = "text-xs uppercase tracking-wide opacity-60";
+    source.textContent = msg.source || "system";
+    header.appendChild(source);
+    card.appendChild(header);
+    const body = document.createElement("div");
+    body.className = "whitespace-pre-wrap text-sm";
+    body.textContent = msg.body || "";
+    card.appendChild(body);
+    return card;
+  };
+  if (pinned.length) {
+    const section = document.createElement("div");
+    section.className = "inbox-section";
+    const label = document.createElement("span");
+    label.className = "inbox-section-label";
+    label.textContent = "Pinned";
+    section.appendChild(label);
+    pinned.forEach(msg => {
+      section.appendChild(buildCard(msg));
     });
+    list.appendChild(section);
+  }
+  if (regular.length) {
+    regular.forEach(msg => list.appendChild(buildCard(msg)));
+  } else if (!pinned.length) {
+    list.innerHTML = '<div class="text-xs opacity-70">No messages yet.</div>';
+  }
+}
+function sendNotification(title, body) {
+  if (!state.settings.notificationsEnabled) return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    try {
+      new Notification(title || "TaskForge", {
+        body: body || "",
+        icon: "Sprites/Commoner.png"
+      });
+    } catch (err) {
+      console.warn("Notification error", err);
+    }
+  } else if (Notification.permission === "default") {
+    Notification.requestPermission().then(result => {
+      if (result === "granted") {
+        sendNotification(title, body);
+      } else if (result === "denied") {
+        state.settings.notificationsEnabled = false;
+        save();
+        updateNotificationUI();
+      }
+    });
+  }
+}
+function updateDailyMail() {
+  const dailyTagIds = getDailyTagIds();
+  const dayBoundary = getDayBoundaryStart();
+  const questDay = getQuestDayDate();
+  const dayKey = formatDateKey(questDay);
+  const dateLabel = new Date(dayBoundary).toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric"
+  });
+  const lines = [`Daily Quests for ${dateLabel}`, ""];
+  if (!dailyTagIds.length) {
+    lines.push('No "Daily" tag found. Create one to track repeating quests.');
+  } else {
+    const incomplete = state.quests
+      .filter(q => questHasDailyTag(q, dailyTagIds))
+      .filter(q => !(q.lastCompletedAt && q.lastCompletedAt >= dayBoundary))
+      .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    lines.push("Incomplete:");
+    if (incomplete.length) {
+      incomplete.forEach(q => {
+        const dueText = q.due ? formatQuestDue(q.due) : "";
+        lines.push(`• ${q.title}${dueText ? ` — due ${dueText}` : ""}`);
+      });
+    } else {
+      lines.push("• All daily quests are complete!");
+    }
+    const completed = state.log
+      .filter(l => l.completedAt && l.completedAt >= dayBoundary)
+      .filter(l => questHasDailyTag(l, dailyTagIds))
+      .sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0));
+    lines.push("", "Completed:");
+    if (completed.length) {
+      completed.forEach(l => {
+        const time = l.completedAt
+          ? new Date(l.completedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+          : "";
+        lines.push(`• ${l.title}${time ? ` (${time})` : ""}`);
+      });
+    } else {
+      lines.push("• None yet.");
+    }
+  }
+  const body = lines.join("\n").trimEnd();
+  const existing = state.inbox.find(msg => msg.id === DAILY_MAIL_ID);
+  if (existing && existing.body === body && existing.dayKey === dayKey && existing.timestamp === dayBoundary) {
+    return;
+  }
+  addInboxMessage({
+    id: DAILY_MAIL_ID,
+    title: "Daily Mail",
+    body,
+    source: "Daily Mail",
+    pinned: true,
+    notify: false,
+    timestamp: dayBoundary,
+    dayKey
+  });
+}
+function checkQuestReminders() {
+  const questDay = getQuestDayDate();
+  let mutated = false;
+  state.quests.forEach(q => {
+    if (!q.due) return;
+    const dueDate = parseDateOnly(q.due);
+    if (!dueDate) return;
+    if (!q.reminderTracker || typeof q.reminderTracker !== "object") q.reminderTracker = {};
+    const diffDays = Math.round((dueDate.getTime() - questDay.getTime()) / MS_PER_DAY);
+    if (diffDays === 1 && q.reminderTracker.dayBefore !== q.due) {
+      q.reminderTracker.dayBefore = q.due;
+      addInboxMessage({
+        title: `Quest tomorrow: ${q.title}`,
+        body: `"${q.title}" is due tomorrow (${formatQuestDue(q.due)}).`,
+        source: "Quest Reminder",
+        notify: true
+      });
+      mutated = true;
+    }
+    if (diffDays === 0 && q.reminderTracker.dayOf !== q.due) {
+      q.reminderTracker.dayOf = q.due;
+      addInboxMessage({
+        title: `Quest today: ${q.title}`,
+        body: `"${q.title}" is due today (${formatQuestDue(q.due)}).`,
+        source: "Quest Reminder",
+        notify: true
+      });
+      mutated = true;
+    }
+    if (diffDays !== 1 && q.reminderTracker.dayBefore === q.due) {
+      delete q.reminderTracker.dayBefore;
+      mutated = true;
+    }
+    if (diffDays !== 0 && q.reminderTracker.dayOf === q.due) {
+      delete q.reminderTracker.dayOf;
+      mutated = true;
+    }
+  });
+  if (mutated) save();
+}
+function updateNotificationUI() {
+  const button = el("btn-toggle-notifications");
+  const status = el("notification-status");
+  if (!button || !status) return;
+  if (!("Notification" in window)) {
+    button.textContent = "Unsupported";
+    button.disabled = true;
+    status.textContent = "Notifications are not available in this browser.";
+    return;
+  }
+  button.disabled = false;
+  const enabled = !!state.settings.notificationsEnabled;
+  button.textContent = enabled ? "Disable" : "Enable";
+  const permission = Notification.permission;
+  if (permission === "denied") {
+    status.textContent = "Permission denied. Enable notifications in your browser settings.";
+  } else if (permission === "default") {
+    status.textContent = enabled
+      ? "Awaiting permission from the browser."
+      : "Enable to receive quest reminders as push notifications.";
+  } else {
+    status.textContent = enabled ? "Notifications enabled." : "Notifications disabled.";
+  }
+}
+function registerPullToRefresh() {
+  if (!('ontouchstart' in window) && !(navigator.maxTouchPoints > 0)) return;
+  let startY = null;
+  let triggered = false;
+  const threshold = 110;
+  document.addEventListener(
+    "touchstart",
+    e => {
+      const scrollTop = document.scrollingElement ? document.scrollingElement.scrollTop : 0;
+      if (scrollTop > 0) {
+        startY = null;
+        triggered = false;
+        return;
+      }
+      startY = e.touches[0]?.clientY ?? null;
+      triggered = false;
+    },
+    { passive: true }
+  );
+  document.addEventListener(
+    "touchmove",
+    e => {
+      if (startY === null || triggered) return;
+      const currentY = e.touches[0]?.clientY ?? 0;
+      if (currentY - startY > threshold) {
+        triggered = true;
+        location.reload();
+      }
+    },
+    { passive: true }
+  );
+  document.addEventListener(
+    "touchend",
+    () => {
+      startY = null;
+      triggered = false;
+    },
+    { passive: true }
+  );
 }
 
 function updateInboxBadge() {
   const badge = el("inbox-badge");
   if (!badge) return;
-  const unread = state.inbox.filter(msg => !msg.read).length;
+  const unread = state.inbox.filter(msg => !msg.read && !msg.pinned).length;
   if (unread > 0) {
     badge.textContent = unread > 99 ? "99+" : unread;
     badge.classList.remove("hidden");
@@ -1137,7 +1452,7 @@ function openInbox() {
   show("view-inbox");
   let changed = false;
   state.inbox.forEach(msg => {
-    if (!msg.read) {
+    if (!msg.read && !msg.pinned) {
       msg.read = true;
       msg.justOpened = true;
       changed = true;
@@ -1635,6 +1950,101 @@ function goldForDiff(diff) {
   if (diff <= 1500) return rand(70, 100);
   return rand(100, 300);
 }
+function sanitizeDailyResetTime(value) {
+  if (typeof value !== "string") return "04:00";
+  const match = value.match(/^(\d{1,2}):(\d{1,2})$/);
+  if (!match) return "04:00";
+  const hour = Math.min(23, Math.max(0, parseInt(match[1], 10)));
+  const minute = Math.min(59, Math.max(0, parseInt(match[2], 10)));
+  return `${pad(hour)}:${pad(minute)}`;
+}
+function getDailyResetParts() {
+  const sanitized = sanitizeDailyResetTime(state.settings.dailyResetTime || "04:00");
+  if (sanitized !== state.settings.dailyResetTime) {
+    state.settings.dailyResetTime = sanitized;
+    save();
+  }
+  const [hour, minute] = sanitized.split(":").map(v => parseInt(v, 10));
+  return { hour, minute, raw: sanitized };
+}
+function parseDateOnly(value) {
+  if (!value || typeof value !== "string") return null;
+  const parts = value.split("-");
+  if (parts.length !== 3) return null;
+  const [year, month, day] = parts.map(Number);
+  if ([year, month, day].some(n => Number.isNaN(n))) return null;
+  const date = new Date();
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+function getQuestDayDate(reference = new Date()) {
+  const { hour, minute } = getDailyResetParts();
+  const questDay = new Date(reference);
+  questDay.setHours(0, 0, 0, 0);
+  const boundary = new Date(questDay);
+  boundary.setHours(hour, minute, 0, 0);
+  if (reference < boundary) {
+    questDay.setDate(questDay.getDate() - 1);
+  }
+  return questDay;
+}
+function getDayBoundaryStart(reference = Date.now()) {
+  const refDate = new Date(reference);
+  const questDay = getQuestDayDate(refDate);
+  const { hour, minute } = getDailyResetParts();
+  questDay.setHours(hour, minute, 0, 0);
+  return questDay.getTime();
+}
+function formatQuestDue(due) {
+  const date = parseDateOnly(due);
+  if (!date) return "";
+  const now = new Date();
+  const options = { month: "short", day: "numeric", weekday: "short" };
+  if (date.getFullYear() !== now.getFullYear()) options.year = "numeric";
+  return date.toLocaleDateString(undefined, options);
+}
+function advanceDueDate(due, frequency) {
+  const date = parseDateOnly(due);
+  if (!date) return due;
+  const originalDay = date.getDate();
+  switch (frequency) {
+    case "bi-daily":
+      date.setDate(date.getDate() + 2);
+      break;
+    case "weekly":
+      date.setDate(date.getDate() + 7);
+      break;
+    case "bi-weekly":
+      date.setDate(date.getDate() + 14);
+      break;
+    case "monthly":
+      date.setDate(1);
+      date.setMonth(date.getMonth() + 1);
+      {
+        const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        date.setDate(Math.min(originalDay, daysInMonth));
+      }
+      break;
+    default:
+      date.setDate(date.getDate() + 1);
+      break;
+  }
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+function getDailyTagIds() {
+  return state.tags
+    .filter(tag => tag && typeof tag.name === "string" && tag.id)
+    .filter(tag => tag.name.toLowerCase() === "daily")
+    .map(tag => tag.id);
+}
+function questHasDailyTag(quest, dailyTagIds) {
+  if (!quest || !Array.isArray(quest.tags)) return false;
+  return quest.tags.some(id => dailyTagIds.includes(id));
+}
 function save() {
   localStorage.setItem("taskforge_save", JSON.stringify(state));
 }
@@ -1685,6 +2095,10 @@ function completeQuest(id) {
   const idx = state.quests.findIndex(q => q.id === id);
   if (idx === -1) return;
   const q = state.quests[idx];
+  const previousDue = q.due || "";
+  const previousLastCompletedAt = q.lastCompletedAt || null;
+  const previousReminderTracker = q.reminderTracker ? { ...q.reminderTracker } : {};
+  const repeatFrequency = q.repeatFrequency || null;
   const gold = goldForDiff(q.diff);
   const stBase = Math.floor(Math.abs(q.xp) / 300);
   const spBase = Math.abs(q.xp) / 30;
@@ -1720,6 +2134,13 @@ function completeQuest(id) {
   }
   state.player.gold += gold;
   const completedAt = Date.now();
+  q.lastCompletedAt = completedAt;
+  if (q.repeat) {
+    if (previousDue) {
+      q.due = advanceDueDate(previousDue, repeatFrequency || "daily");
+    }
+    q.reminderTracker = {};
+  }
   const logEntry = {
     id: crypto.randomUUID(),
     questId: q.id,
@@ -1733,10 +2154,15 @@ function completeQuest(id) {
     notes: q.notes,
     repeat: q.repeat,
     anti: q.anti,
-    due: q.due,
+    due: previousDue,
     gold,
     completedAt,
-    noteColor: q.noteColor || "#0ea5e9"
+    noteColor: q.noteColor || "#0ea5e9",
+    repeatFrequency,
+    previousDue,
+    previousLastCompletedAt,
+    previousReminderTracker,
+    lastCompletedAt: completedAt
   };
   state.log.push(logEntry);
   if (state.log.length > 200) state.log.shift();
@@ -2012,10 +2438,40 @@ function undoQuest(logId) {
       tags: l.tags ? l.tags.slice() : [],
       notes: l.notes,
       repeat: l.repeat,
+      repeatFrequency: l.repeatFrequency || null,
       anti: l.anti,
-      due: l.due,
-      noteColor: l.noteColor || "#0ea5e9"
+      due: l.previousDue !== undefined ? l.previousDue : (l.due || ""),
+      noteColor: l.noteColor || "#0ea5e9",
+      lastCompletedAt: l.previousLastCompletedAt || null,
+      reminderTracker: l.previousReminderTracker ? { ...l.previousReminderTracker } : {}
     });
+  } else {
+    const quest = state.quests.find(q => q.id === l.questId);
+    if (quest) {
+      quest.due = l.previousDue !== undefined ? l.previousDue : quest.due;
+      quest.lastCompletedAt = l.previousLastCompletedAt || null;
+      quest.repeatFrequency = l.repeatFrequency || quest.repeatFrequency || "daily";
+      quest.reminderTracker = l.previousReminderTracker ? { ...l.previousReminderTracker } : {};
+    } else {
+      state.quests.push({
+        id: l.questId,
+        title: l.title,
+        diff: l.diff,
+        time: l.time,
+        xp: l.xp,
+        stats: l.stats ? l.stats.map(s => ({ name: s.name, mult: 1 })) : (l.stat ? [{ name: l.stat, mult: 1 }] : []),
+        skills: l.skills ? l.skills.map(s => ({ name: s.name, mult: 1 })) : (l.skill ? [{ name: l.skill, mult: 1 }] : []),
+        tags: l.tags ? l.tags.slice() : [],
+        notes: l.notes,
+        repeat: true,
+        repeatFrequency: l.repeatFrequency || "daily",
+        anti: l.anti,
+        due: l.previousDue !== undefined ? l.previousDue : (l.due || ""),
+        noteColor: l.noteColor || "#0ea5e9",
+        lastCompletedAt: l.previousLastCompletedAt || null,
+        reminderTracker: l.previousReminderTracker ? { ...l.previousReminderTracker } : {}
+      });
+    }
   }
   save();
   render();
@@ -2044,6 +2500,8 @@ function startEdit(id) {
   renderTagSelection(el("q-tag-options"), q.tags || [], "q-tag-option");
   el("q-due").value = q.due || "";
   el("q-repeat").checked = q.repeat || false;
+  el("q-repeat-frequency").value = q.repeatFrequency || "daily";
+  el("q-repeat-frequency").classList.toggle("hidden", !q.repeat);
   el("q-notes").value = q.notes || "";
   el("q-note-color").value = q.noteColor || "#0ea5e9";
   el("q-anti").classList.toggle("font-bold", antiQuest);
@@ -2105,12 +2563,16 @@ function startEdit(id) {
     el("audio-volume").value = state.settings.volume;
     el("audio-section").classList.toggle("hidden", state.settings.audioCollapsed);
     el("audio-toggle-symbol").textContent = state.settings.audioCollapsed ? "+" : "-";
+    const reset = getDailyResetParts();
+    el("daily-reset-time").value = reset.raw;
+    updateNotificationUI();
     el("dev-theme").value = state.settings.theme || "default";
     applyTheme();
     renderDevTitles();
     renderDevMonsters();
     renderDevItemAudio();
     renderDungeon();
+    updateDailyMail();
     renderInbox();
     updateInboxBadge();
     renderCustomFilterSettings();
@@ -2128,6 +2590,9 @@ function startEdit(id) {
       el("q-adjust").checked = false;
       renderTagSelection(el("q-tag-options"), [], "q-tag-option");
       el("q-note-color").value = "#0ea5e9";
+      el("q-repeat").checked = false;
+      el("q-repeat-frequency").value = "daily";
+      el("q-repeat-frequency").classList.add("hidden");
     }
     document.querySelectorAll(".q-skill").forEach(sel => populateSkillOptions(sel));
     document.querySelectorAll(".q-stat").forEach(sel => populateStatOptions(sel));
@@ -2295,7 +2760,7 @@ function startEdit(id) {
               .map(s => `${s.name}${s.points ? `+${s.points}` : ''}`)
               .join(", ")
           : "";
-        if (l.due) node.querySelector(".l-due").textContent = `Due: ${new Date(l.due).toLocaleString()}`;
+        if (l.due) node.querySelector(".l-due").textContent = `Due: ${formatQuestDue(l.due)}`;
         node.querySelector(".l-time").textContent = new Date(l.completedAt).toLocaleString();
         node.querySelector(".l-notes").textContent = l.notes;
         node.querySelector(".l-undo").onclick = () => undoQuest(l.id);
@@ -2342,6 +2807,9 @@ el("btn-show-form").onclick = () => {
   document.querySelectorAll(".q-skill").forEach(sel => populateSkillOptions(sel));
   renderTagSelection(el("q-tag-options"), [], "q-tag-option");
   el("q-note-color").value = "#0ea5e9";
+  el("q-repeat").checked = false;
+  el("q-repeat-frequency").value = "daily";
+  el("q-repeat-frequency").classList.add("hidden");
   el("btn-submit-quest").textContent = "Add Quest";
   el("quest-form").classList.toggle("hidden");
 };
@@ -2367,8 +2835,13 @@ el("quest-form").onsubmit = e => {
       return { name, mult };
     })
     .filter(Boolean);
+  const repeat = el("q-repeat").checked;
+  const repeatFrequency = repeat ? (el("q-repeat-frequency").value || "daily") : null;
+  const dueValue = (el("q-due").value || "").trim();
+  const questId = editingId || crypto.randomUUID();
+  const existingQuest = state.quests.find(q => q.id === editingId);
   const q = {
-    id: editingId || crypto.randomUUID(),
+    id: questId,
     title: el("q-title").value || "Untitled",
     diff,
     time,
@@ -2376,13 +2849,21 @@ el("quest-form").onsubmit = e => {
     stats,
     skills,
     tags: Array.from(el("q-tag-options").querySelectorAll(".q-tag-option:checked")).map(i => i.value),
-    due: el("q-due").value || "",
-    repeat: el("q-repeat").checked,
+    due: dueValue,
+    repeat,
+    repeatFrequency,
     anti: antiQuest,
     notes: el("q-notes").value,
-    noteColor: el("q-note-color").value || "#0ea5e9"
+    noteColor: el("q-note-color").value || "#0ea5e9",
+    lastCompletedAt: existingQuest ? existingQuest.lastCompletedAt || null : null,
+    reminderTracker: existingQuest && existingQuest.reminderTracker
+      ? { ...existingQuest.reminderTracker }
+      : {}
   };
-  const existing = state.quests.findIndex(q => q.id === editingId);
+  if (existingQuest && existingQuest.due !== q.due) {
+    q.reminderTracker = {};
+  }
+  const existing = state.quests.findIndex(quest => quest.id === editingId);
   if (existing !== -1) state.quests[existing] = q; else state.quests.push(q);
   editingId = null;
   antiQuest = false;
@@ -2452,6 +2933,45 @@ el("btn-add-stat-row").onclick = () => addStatRow();
 el("q-stat-adjust").onchange = () => {
   const show = el("q-stat-adjust").checked;
   document.querySelectorAll(".q-stat-mult").forEach(i => i.classList.toggle("hidden", !show));
+};
+el("q-repeat").onchange = () => {
+  const show = el("q-repeat").checked;
+  const select = el("q-repeat-frequency");
+  select.classList.toggle("hidden", !show);
+  if (show && !select.value) select.value = "daily";
+};
+el("btn-toggle-notifications").onclick = () => {
+  if (!("Notification" in window)) return;
+  if (state.settings.notificationsEnabled) {
+    state.settings.notificationsEnabled = false;
+    save();
+    updateNotificationUI();
+    return;
+  }
+  if (Notification.permission === "granted") {
+    state.settings.notificationsEnabled = true;
+    save();
+    updateNotificationUI();
+  } else if (Notification.permission === "denied") {
+    state.settings.notificationsEnabled = false;
+    save();
+    updateNotificationUI();
+  } else {
+    Notification.requestPermission().then(result => {
+      state.settings.notificationsEnabled = result === "granted";
+      save();
+      updateNotificationUI();
+    });
+  }
+};
+el("daily-reset-time").onchange = e => {
+  const value = sanitizeDailyResetTime(e.target.value || "04:00");
+  state.settings.dailyResetTime = value;
+  e.target.value = value;
+  save();
+  renderQuestList();
+  updateDailyMail();
+  checkQuestReminders();
 };
 el("dev-theme").onchange = e => {
   state.settings.theme = e.target.value;
@@ -2597,7 +3117,12 @@ el("q-anti").onclick = () => {
   antiQuest = !antiQuest;
   el("q-anti").classList.toggle("font-bold", antiQuest);
 };
+checkQuestReminders();
+updateDailyMail();
+setInterval(checkQuestReminders, 60 * 1000);
+setInterval(updateDailyMail, 60 * 1000);
 setInterval(updateStreakTimer, 1000);
+registerPullToRefresh();
 render();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js');
