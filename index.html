@@ -59,9 +59,212 @@
     .inbox-card-pinned {
       border: 1px solid rgba(14, 165, 233, 0.45);
     }
+
+    .hold-btn {
+      --btn-bg: #16a34a;
+      --btn-bg-dark: #0e7a39;
+      --btn-text: #eafff1;
+      --btn-glow: rgba(34, 197, 94, 0.4);
+      --track: rgba(255, 255, 255, 0.06);
+      --fill1: rgba(80, 200, 255, 0.9);
+      --fill2: rgba(0, 150, 200, 0.35);
+      --spark1: #5cf4ff;
+      --spark2: #3bd1c8;
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: 100%;
+      min-height: 44px;
+      border-radius: 0.75rem;
+      border: none;
+      background: linear-gradient(180deg, var(--btn-bg), var(--btn-bg-dark));
+      color: var(--btn-text);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 6px 18px -6px var(--btn-glow);
+      outline: none;
+      overflow: hidden;
+      user-select: none;
+      transition: transform 0.15s ease;
+    }
+    .hold-btn[data-variant="attack"] {
+      --btn-bg: #dc2626;
+      --btn-bg-dark: #991b1b;
+      --btn-text: #fee2e2;
+      --btn-glow: rgba(248, 113, 113, 0.45);
+      --fill1: rgba(248, 113, 113, 0.9);
+      --fill2: rgba(239, 68, 68, 0.4);
+      --spark1: #f87171;
+      --spark2: #fb7185;
+    }
+    .hold-btn:focus-visible {
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45), 0 6px 20px -6px rgba(56, 189, 248, 0.35);
+    }
+    .hold-btn:active {
+      transform: scale(0.98);
+    }
+    .hold-btn .track {
+      position: absolute;
+      inset: 0;
+      background: var(--track);
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .hold-btn.holding .track {
+      opacity: 1;
+    }
+    .hold-btn .fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg, var(--fill1), var(--fill2));
+      box-shadow: inset -10px 0 30px -20px rgba(255, 255, 255, 0.9);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .hold-btn.holding .fill {
+      opacity: 1;
+    }
+    .hold-btn .label-text {
+      position: relative;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .hold-btn .pop-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .hold-btn .pop-ring.show {
+      animation: hold-ring 0.5s ease-out both;
+    }
+    @keyframes hold-ring {
+      0% {
+        box-shadow: 0 0 0 0 rgba(100, 220, 255, 0.7);
+        opacity: 1;
+      }
+      100% {
+        box-shadow: 0 0 0 18px rgba(100, 220, 255, 0);
+        opacity: 0;
+      }
+    }
+    @keyframes hold-pop {
+      0% {
+        transform: scale(1);
+      }
+      55% {
+        transform: scale(1.06);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    #hold-fx {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: visible;
+      z-index: 50;
+    }
+    #hold-fx .spark {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--spark-color-1), var(--spark-color-2));
+      filter: drop-shadow(0 0 6px var(--spark-color-1));
+      transform: translate(var(--x0), var(--y0)) scale(0.9);
+      animation: sparkMove 0.7s ease-out forwards, sparkFade 0.7s ease-out forwards;
+    }
+    @keyframes sparkMove {
+      to {
+        transform: translate(var(--x1), var(--y1)) scale(0.6);
+      }
+    }
+    @keyframes sparkFade {
+      0% {
+        opacity: 1;
+      }
+      70% {
+        opacity: 0.9;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    #hold-rewards {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 60;
+    }
+    #hold-rewards .drop {
+      position: fixed;
+      left: var(--cx, 50%);
+      top: var(--cy, 50%);
+      transform: translate(-50%, -50%);
+      font-weight: 600;
+      font-size: 1.1rem;
+      letter-spacing: 0.3px;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.18), 0 0 18px rgba(255, 255, 255, 0.1);
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.1));
+      opacity: 0;
+      will-change: transform, opacity;
+      animation: hold-reward 2.4s ease-out forwards;
+      white-space: nowrap;
+    }
+    @keyframes hold-reward {
+      0% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, 0px)));
+      }
+      10% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--x2, 0px)), calc(-50% + var(--y2, 120px)));
+      }
+    }
+    #hold-rewards .drop.xp {
+      color: #86efac;
+      text-shadow: 0 0 14px rgba(34, 197, 94, 0.6), 0 0 28px rgba(34, 197, 94, 0.35);
+    }
+    #hold-rewards .drop.gold {
+      color: #facc15;
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.55), 0 0 28px rgba(250, 204, 21, 0.3);
+    }
+    #hold-rewards .drop.stat,
+    #hold-rewards .drop.skill,
+    #hold-rewards .drop.damage {
+      color: #f8fafc;
+      text-shadow: 0 0 12px rgba(226, 232, 240, 0.55), 0 0 24px rgba(226, 232, 240, 0.28);
+    }
+    #hold-rewards .drop.dmg {
+      color: #f87171;
+      text-shadow: 0 0 14px rgba(248, 113, 113, 0.55), 0 0 28px rgba(248, 113, 113, 0.28);
+    }
+    #hold-rewards .drop.dice {
+      color: #4ade80;
+      text-shadow: 0 0 14px rgba(74, 222, 128, 0.55), 0 0 28px rgba(74, 222, 128, 0.28);
+    }
+    #hold-rewards .drop.miss {
+      color: #facc15;
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.55), 0 0 28px rgba(250, 204, 21, 0.28);
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen theme-default">
+  <div id="hold-fx"></div>
+  <div id="hold-rewards" class="rewards-layer"></div>
   <div class="h-8 md:h-10"></div>
   <div class="max-w-6xl mx-auto p-4 md:p-8">
     <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -106,7 +309,16 @@
                   <div class="text-xs opacity-70">Gold</div>
                 </div>
               </div>
-              <div class="mt-3 text-xs opacity-90">Next level at <span id="next-xp">50</span> XP</div>
+              <div class="mt-3">
+                <div class="flex items-center justify-between text-xs opacity-80">
+                  <span>XP Progress</span>
+                  <span><span id="xp-current">0</span>/<span id="next-xp">50</span> XP</span>
+                </div>
+                <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mt-1">
+                  <div id="xp-progress" class="h-2 bg-sky-500 transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+                <div class="text-xs opacity-70 mt-1">Next level in <span id="xp-remaining">50</span> XP</div>
+              </div>
 
             <div class="mt-4 grid grid-cols-2 gap-2">
               <button id="btn-open-quests" class="w-full text-left font-semibold hover:text-sky-300">Quests</button>
@@ -118,7 +330,7 @@
               <button id="btn-open-inventory" class="w-full text-left font-semibold hover:text-sky-300">Inventory</button>
               <button id="btn-open-notes" class="w-full text-left font-semibold hover:text-sky-300">Journal</button>
               <button id="btn-open-log" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Audit Log</button>
-              <button id="btn-open-dungeon" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Dungeon</button>
+              <button id="btn-open-dungeon" class="w-full text-left font-semibold hover:text-sky-300 col-span-2">Codex</button>
             </div>
             </div>
         </div>
@@ -292,14 +504,14 @@
           </div>
           <div id="view-log" class="hidden"><h2 class="text-xl font-semibold mb-3">Audit Log</h2><div id="log-list"></div></div>
           <div id="view-dungeon" class="hidden">
-            <h2 class="text-xl font-semibold mb-3">Dungeon</h2>
+            <h2 class="text-xl font-semibold mb-3">Codex</h2>
             <div id="dungeon-stats" class="text-sm mb-3">
-              Highest Dungeon Run: <span id="dungeon-highest">0</span> Monster(s) Defeated<br/>
+              Highest Codex Run: <span id="dungeon-highest">0</span> Monster(s) Defeated<br/>
               Current Run: <span id="dungeon-current">0</span> Monster(s) Defeated
             </div>
             <div id="dungeon-monster" class="mb-4 text-center"></div>
             <div class="mb-4">
-              <h3 class="font-semibold mb-1 text-sm">Dungeon Chat</h3>
+              <h3 class="font-semibold mb-1 text-sm">Codex Entries</h3>
               <div id="dungeon-log" class="text-xs space-y-1"></div>
             </div>
             <div id="dungeon-quests" class="mb-4"></div>
@@ -394,7 +606,12 @@
       <div class="q-last-completed text-xs opacity-60 mt-1 hidden"></div>
       <p class="q-notes text-sm opacity-85 mt-2"></p>
       <div class="mt-3 flex gap-2">
-        <button class="q-complete flex-1 px-3 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-sm">Completed</button>
+        <button type="button" class="q-complete hold-btn flex-1" data-variant="quest" aria-label="Hold to complete quest">
+          <span class="track" aria-hidden="true"></span>
+          <span class="fill" aria-hidden="true"></span>
+          <span class="label-text">Completed</span>
+          <span class="pop-ring" aria-hidden="true"></span>
+        </button>
         <button class="q-edit px-3 py-2 rounded bg-sky-700 hover:bg-sky-600 text-sm">Edit</button>
         <button class="q-delete px-3 py-2 rounded bg-rose-700 hover:bg-rose-600 text-sm">Delete</button>
       </div>
@@ -461,6 +678,10 @@ const DEFAULT_SAVE = {
   dungeon: { current: null, chat: [], currentRun: 0, highestRun: 0, usedLogs: [], recentMonsters: [], activeMonsterKey: null }
 };
 const el = id => document.getElementById(id);
+const holdFxLayer = el("hold-fx");
+const holdRewardsLayer = el("hold-rewards");
+const HOLD_BUTTON_DURATION = 1100;
+const CODEX_KEY = "codex";
 const state =
   JSON.parse(localStorage.getItem("taskforge_save") || "null") ||
   structuredClone(DEFAULT_SAVE);
@@ -628,16 +849,113 @@ const levelSounds = [
   new Audio("Sound Effects/lvlupfallout.mp3"),
   new Audio("Sound Effects/lvlupskyrim.mp3")
 ];
-const attackSound = new Audio("Sound Effects/Attack.mp3");
 let currentLvlSound = null;
+let attackAudioCtx = null;
+let attackVolume = state.settings.volume;
 goldSound.volume = state.settings.volume;
 levelSounds.forEach(s => (s.volume = state.settings.volume));
-attackSound.volume = state.settings.volume;
 let dungeonTimer = null;
 const consumeSound = new Audio("Sound Effects/consume.mp3");
 const drinkSound = new Audio("Sound Effects/drink.mp3");
 consumeSound.volume = state.settings.volume;
 drinkSound.volume = state.settings.volume;
+
+function playAttackSound() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return;
+  if (!attackAudioCtx) {
+    try {
+      attackAudioCtx = new AudioCtor();
+    } catch (err) {
+      console.warn("Attack sound init failed", err);
+      return;
+    }
+  }
+  const ctx = attackAudioCtx;
+  const schedule = () => {
+    try {
+      const volume = Math.max(0, Math.min(1, attackVolume ?? state.settings.volume ?? 0));
+      if (volume <= 0) return;
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(volume * 0.9, now + 0.01);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+      master.connect(ctx.destination);
+
+      const impact = ctx.createOscillator();
+      impact.type = "triangle";
+      impact.frequency.setValueAtTime(190, now);
+      impact.frequency.exponentialRampToValueAtTime(70, now + 0.45);
+      const impactGain = ctx.createGain();
+      impactGain.gain.setValueAtTime(0.0001, now);
+      impactGain.gain.exponentialRampToValueAtTime(volume * 0.65, now + 0.02);
+      impactGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+      impact.connect(impactGain).connect(master);
+      impact.start(now);
+      impact.stop(now + 0.55);
+
+      const edge = ctx.createOscillator();
+      edge.type = "square";
+      edge.frequency.setValueAtTime(520, now + 0.01);
+      edge.frequency.exponentialRampToValueAtTime(150, now + 0.28);
+      const edgeGain = ctx.createGain();
+      edgeGain.gain.setValueAtTime(0.0001, now);
+      edgeGain.gain.exponentialRampToValueAtTime(volume * 0.35, now + 0.015);
+      edgeGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+      edge.connect(edgeGain).connect(master);
+      edge.start(now + 0.01);
+      edge.stop(now + 0.33);
+
+      const noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.25), ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        const decay = Math.pow(1 - i / data.length, 2);
+        data[i] = (Math.random() * 2 - 1) * decay;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = "bandpass";
+      noiseFilter.frequency.setValueAtTime(720, now);
+      noiseFilter.Q.value = 0.9;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, now);
+      noiseGain.gain.exponentialRampToValueAtTime(volume * 0.5, now + 0.012);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+      noise.connect(noiseFilter).connect(noiseGain).connect(master);
+      noise.start(now);
+      noise.stop(now + 0.25);
+
+      const tail = ctx.createOscillator();
+      tail.type = "sine";
+      tail.frequency.setValueAtTime(120, now);
+      tail.frequency.exponentialRampToValueAtTime(40, now + 0.7);
+      const tailGain = ctx.createGain();
+      tailGain.gain.setValueAtTime(0.0001, now);
+      tailGain.gain.linearRampToValueAtTime(volume * 0.22, now + 0.08);
+      tailGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+      tail.connect(tailGain).connect(master);
+      tail.start(now);
+      tail.stop(now + 0.75);
+
+      setTimeout(() => {
+        try {
+          master.disconnect();
+        } catch (err) {
+          /* noop */
+        }
+      }, 800);
+    } catch (err) {
+      console.warn("Attack sound playback failed", err);
+    }
+  };
+  if (ctx.state === "suspended") {
+    ctx.resume().then(schedule).catch(() => {});
+  } else {
+    schedule();
+  }
+}
 
 function playItemSound(item) {
   const cfg = state.settings.itemAudio[item.title];
@@ -975,7 +1293,12 @@ function renderQuestList() {
     notesEl.style.borderLeft = `4px solid ${q.noteColor || "#0ea5e9"}`;
     notesEl.style.backgroundColor = hexToRgba(q.noteColor || "#0ea5e9", 0.2);
     notesEl.style.paddingLeft = "0.5rem";
-    node.querySelector(".q-complete").onclick = () => confirmQuest(q.id);
+    const completeBtn = node.querySelector(".q-complete");
+    attachHoldButton(completeBtn, {
+      variant: "quest",
+      onComplete: () => completeQuest(q.id),
+      getDrops: result => createQuestDrops(result)
+    });
     node.querySelector(".q-delete").onclick = () => deleteQuest(q.id);
     node.querySelector(".q-edit").onclick = () => startEdit(q.id);
     qlist.appendChild(node);
@@ -1123,10 +1446,17 @@ function renderCustomFilterSettings() {
 function pruneDungeonChat() {
   if (!state.dungeon) return;
   if (!Array.isArray(state.dungeon.recentMonsters)) state.dungeon.recentMonsters = [];
-  const keepKeys = state.dungeon.recentMonsters.slice(-2);
+  const hasCodexEntries = Array.isArray(state.dungeon.chat)
+    ? state.dungeon.chat.some(entry => entry && entry.monsterKey === CODEX_KEY)
+    : false;
+  let keepKeys = state.dungeon.recentMonsters.slice(-2);
+  if (hasCodexEntries && !keepKeys.includes(CODEX_KEY)) {
+    keepKeys.unshift(CODEX_KEY);
+  }
   state.dungeon.recentMonsters = keepKeys.slice();
   state.dungeon.chat.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   state.dungeon.chat = state.dungeon.chat.filter(entry => {
+    if (entry.monsterKey === CODEX_KEY) return true;
     if (!entry.monsterKey) {
       if (keepKeys.length) {
         entry.monsterKey = keepKeys[keepKeys.length - 1];
@@ -1136,6 +1466,21 @@ function pruneDungeonChat() {
     return keepKeys.includes(entry.monsterKey);
   });
   keepKeys.forEach(key => {
+    if (key === CODEX_KEY) {
+      const codexEntries = state.dungeon.chat.filter(entry => entry.monsterKey === CODEX_KEY);
+      if (codexEntries.length > 12) {
+        let removed = 0;
+        state.dungeon.chat = state.dungeon.chat.filter(entry => {
+          if (entry.monsterKey !== CODEX_KEY) return true;
+          if (removed < codexEntries.length - 12) {
+            removed++;
+            return false;
+          }
+          return true;
+        });
+      }
+      return;
+    }
     let count = 0;
     state.dungeon.chat.forEach(entry => {
       if (entry.monsterKey === key) count++;
@@ -1154,12 +1499,12 @@ function pruneDungeonChat() {
   });
 }
 
-function addDungeonChatBlock(title, lines = []) {
+function addDungeonChatBlock(title, lines = [], options = {}) {
   if (!state.dungeon) return;
   const normalizedLines = Array.isArray(lines) ? lines : [String(lines)];
   const recent = Array.isArray(state.dungeon.recentMonsters) ? state.dungeon.recentMonsters : [];
   const lastKey = recent[recent.length - 1] || null;
-  const monsterKey = state.dungeon.activeMonsterKey || lastKey || crypto.randomUUID();
+  let monsterKey = options.monsterKey || state.dungeon.activeMonsterKey || lastKey || crypto.randomUUID();
   if (!recent.includes(monsterKey)) {
     recent.push(monsterKey);
     state.dungeon.recentMonsters = recent;
@@ -1169,9 +1514,273 @@ function addDungeonChatBlock(title, lines = []) {
     title,
     lines: normalizedLines,
     monsterKey,
-    createdAt: Date.now()
+    createdAt: options.createdAt || Date.now()
   });
   pruneDungeonChat();
+}
+
+function formatNumber(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) return value;
+  return value.toLocaleString();
+}
+
+function formatSigned(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) return value;
+  if (value > 0) return `+${formatNumber(value)}`;
+  if (value < 0) return `-${formatNumber(Math.abs(value))}`;
+  return "0";
+}
+
+function spawnHoldSparks(rect, variant = "quest", colors) {
+  if (!holdFxLayer || !rect) return;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const count = 24;
+  const palette = Array.isArray(colors) && colors.length === 2
+    ? colors
+    : variant === "attack"
+      ? ["#f87171", "#fb7185"]
+      : ["#5cf4ff", "#3bd1c8"];
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r0 = Math.random() * 8 - 4;
+    const r1 = 70 + Math.random() * 90;
+    const x0 = cx + Math.cos(angle) * r0;
+    const y0 = cy + Math.sin(angle) * r0;
+    const x1 = cx + Math.cos(angle) * r1;
+    const y1 = cy + Math.sin(angle) * r1;
+    const spark = document.createElement("span");
+    spark.className = "spark";
+    spark.style.left = `${x0}px`;
+    spark.style.top = `${y0}px`;
+    spark.style.setProperty("--x0", "-50%");
+    spark.style.setProperty("--y0", "-50%");
+    spark.style.setProperty("--x1", `${x1 - x0 - 50}px`);
+    spark.style.setProperty("--y1", `${y1 - y0 - 50}px`);
+    spark.style.setProperty("--spark-color-1", palette[0]);
+    spark.style.setProperty("--spark-color-2", palette[1]);
+    holdFxLayer.appendChild(spark);
+    setTimeout(() => spark.remove(), 720);
+  }
+}
+
+function spawnRewardDrops(rect, drops = []) {
+  if (!holdRewardsLayer || !rect || !drops.length) return;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const spacing = 34;
+  const startOffset = -((drops.length - 1) / 2) * spacing;
+  drops.forEach((drop, idx) => {
+    if (!drop || !drop.text) return;
+    const el = document.createElement("div");
+    el.className = `drop ${drop.cls || ""}`.trim();
+    el.textContent = drop.text;
+    const jitterX = Math.random() * 16 - 8;
+    const jitterY = Math.random() * 10 - 5;
+    const driftX = Math.random() * 20 - 10;
+    const fall = 110 + Math.random() * 60;
+    const baseY = startOffset + idx * spacing;
+    el.style.setProperty("--cx", `${cx}px`);
+    el.style.setProperty("--cy", `${cy}px`);
+    el.style.setProperty("--x", `${jitterX}px`);
+    el.style.setProperty("--y", `${baseY + jitterY}px`);
+    el.style.setProperty("--x2", `${jitterX + driftX}px`);
+    el.style.setProperty("--y2", `${baseY + jitterY + fall}px`);
+    holdRewardsLayer.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  });
+}
+
+function triggerHoldFeedback({ rect, drops, variant, sparkColors, outcome, onAfter }) {
+  if (!rect) return;
+  spawnHoldSparks(rect, variant, sparkColors);
+  if (Array.isArray(drops) && drops.length) {
+    spawnRewardDrops(rect, drops);
+  }
+  if (typeof onAfter === "function") {
+    onAfter({ rect, drops, outcome });
+  }
+}
+
+function attachHoldButton(btn, config = {}) {
+  if (!btn) return;
+  const duration = config.duration || HOLD_BUTTON_DURATION;
+  const fill = btn.querySelector(".fill");
+  const ring = btn.querySelector(".pop-ring");
+  let rafId = 0;
+  let startTs = 0;
+  let isHolding = false;
+  let completed = false;
+  let keyHolding = false;
+  let pointerId = null;
+
+  function resetVisual() {
+    startTs = 0;
+    if (fill) fill.style.width = "0%";
+    btn.classList.remove("holding");
+  }
+
+  function cancelHold() {
+    isHolding = false;
+    cancelAnimationFrame(rafId);
+    if (!completed) {
+      resetVisual();
+    }
+  }
+
+  function finishHold() {
+    isHolding = false;
+    completed = true;
+    cancelAnimationFrame(rafId);
+    const rect = config.getRect ? config.getRect(btn) : btn.getBoundingClientRect();
+    if (fill) fill.style.width = "100%";
+    btn.classList.remove("holding");
+    if (ring) {
+      ring.classList.remove("show");
+      void ring.offsetWidth;
+      ring.classList.add("show");
+    }
+    btn.style.animation = "none";
+    void btn.offsetWidth;
+    btn.style.animation = "hold-pop 0.28s ease-out";
+    const outcome = config.onComplete ? config.onComplete({ rect, button: btn }) : null;
+    const drops = config.getDrops ? config.getDrops(outcome) : [];
+    if (outcome !== undefined && outcome !== null || (Array.isArray(drops) && drops.length)) {
+      triggerHoldFeedback({
+        rect,
+        drops,
+        variant: config.variant || btn.dataset.variant || "quest",
+        sparkColors: config.sparkColors,
+        outcome,
+        onAfter: config.onAfter
+      });
+    }
+    setTimeout(() => {
+      btn.style.animation = "none";
+      if (btn.isConnected) resetVisual();
+    }, 280);
+  }
+
+  function step(timestamp) {
+    if (!isHolding) return;
+    if (!startTs) startTs = timestamp;
+    const progress = Math.min(1, (timestamp - startTs) / duration);
+    if (fill) fill.style.width = `${(progress * 100).toFixed(2)}%`;
+    if (progress >= 1) {
+      finishHold();
+    } else {
+      rafId = requestAnimationFrame(step);
+    }
+  }
+
+  function beginHold() {
+    if (isHolding) return;
+    isHolding = true;
+    completed = false;
+    startTs = 0;
+    btn.classList.add("holding");
+    rafId = requestAnimationFrame(step);
+  }
+
+  btn.addEventListener("pointerdown", e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    pointerId = e.pointerId;
+    beginHold();
+    btn.setPointerCapture?.(pointerId);
+    e.preventDefault();
+  });
+
+  btn.addEventListener("pointerup", () => {
+    if (!isHolding) return;
+    btn.releasePointerCapture?.(pointerId);
+    if (!completed) {
+      cancelHold();
+    }
+  });
+
+  btn.addEventListener("pointerleave", () => {
+    if (isHolding && !completed) cancelHold();
+  });
+
+  btn.addEventListener("pointercancel", () => {
+    if (isHolding && !completed) cancelHold();
+  });
+
+  btn.addEventListener("keydown", e => {
+    if (e.code !== "Space" && e.code !== "Enter") return;
+    if (keyHolding) return;
+    keyHolding = true;
+    beginHold();
+    e.preventDefault();
+  });
+
+  btn.addEventListener("keyup", e => {
+    if (e.code !== "Space" && e.code !== "Enter") return;
+    keyHolding = false;
+    if (!completed) cancelHold();
+  });
+}
+
+function createHoldButtonElement(label, variant = "quest") {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "hold-btn";
+  btn.dataset.variant = variant;
+  btn.setAttribute("aria-label", `Hold to ${label.toLowerCase()}`);
+  btn.innerHTML = `<span class="track" aria-hidden="true"></span>
+    <span class="fill" aria-hidden="true"></span>
+    <span class="label-text"></span>
+    <span class="pop-ring" aria-hidden="true"></span>`;
+  const labelEl = btn.querySelector(".label-text");
+  if (labelEl) labelEl.textContent = label;
+  return btn;
+}
+
+function createQuestDrops(result) {
+  if (!result) return [];
+  const drops = [];
+  if (typeof result.xp === "number") {
+    drops.push({ text: `${formatSigned(result.xp)} XP`, cls: "xp" });
+  }
+  if (typeof result.gold === "number") {
+    drops.push({ text: `${formatSigned(result.gold)} Gold`, cls: "gold" });
+  }
+  (Array.isArray(result.stats) ? result.stats : [])
+    .filter(entry => typeof entry.points === "number" && entry.points !== 0)
+    .forEach(entry => {
+      drops.push({ text: `${entry.name} ${formatSigned(entry.points)}`, cls: "stat" });
+    });
+  (Array.isArray(result.skills) ? result.skills : [])
+    .filter(entry => typeof entry.points === "number" && entry.points !== 0)
+    .forEach(entry => {
+      drops.push({ text: `${entry.name} ${formatSigned(entry.points)}`, cls: "skill" });
+    });
+  return drops;
+}
+
+function createAttackDrops(result) {
+  if (!result) return [];
+  const drops = [];
+  const rollValue = Array.isArray(result.rollHistory) && result.rollHistory.length
+    ? result.rollHistory[result.rollHistory.length - 1]
+    : result.roll;
+  if (typeof rollValue === "number") {
+    drops.push({ text: `Dice ${formatSigned(rollValue)}`, cls: "dice" });
+  }
+  if (result.missed) {
+    drops.push({ text: "Damage 0", cls: "damage" });
+    drops.push({ text: "Miss!", cls: "miss" });
+    return drops;
+  }
+  if (typeof result.totalDamage === "number") {
+    drops.push({ text: `Damage ${formatSigned(result.totalDamage)}`, cls: "damage" });
+  }
+  if (result.critical) {
+    drops.push({ text: "Critical!", cls: "dmg" });
+  } else if (result.abilityTriggered) {
+    drops.push({ text: result.abilityText || "Absorbed!", cls: "dmg" });
+  }
+  return drops;
 }
 
 function addInboxMessage({ id, title, body, source = "system", pinned = false, notify = true, timestamp = Date.now(), dayKey = null }) {
@@ -1630,12 +2239,10 @@ function spawnMonster() {
 function attackDungeon(logId) {
   const log = state.log.find(l => l.id === logId);
   const m = state.dungeon.current;
-  if (!log || !m) return;
+  if (!log || !m) return null;
   const dieSides = log.diff >= 1000 ? 20 : 8;
   let roll = rand(1, dieSides);
   const rollHistory = [roll];
-  let missed = false;
-  if (roll === 1) missed = true;
   const baseDamage = Math.max(0, log.xp / 100);
   let multiplier = 1;
   let additiveBonus = 0;
@@ -1666,24 +2273,45 @@ function attackDungeon(logId) {
   let totalBeforeCrit = Math.max(0, damageAfterMultiplier + additiveBonus);
   let critExtra = 0;
   let totalDamage = Math.floor(totalBeforeCrit);
-  if (!missed && roll === dieSides) {
+  const result = {
+    logId,
+    questTitle: log.title || "Unknown Quest",
+    monsterName: m.name,
+    dieSides,
+    roll,
+    rollHistory: rollHistory.slice(),
+    missed: roll === 1,
+    baseDamage: baseValue,
+    multiplierDelta,
+    bonusValue,
+    totalDamage: 0,
+    critical: false,
+    abilityTriggered: false,
+    abilityText: "",
+    remainingHp: m.hp,
+    maxHp: m.maxHp,
+    monsterDefeated: false,
+    xpGain: 0,
+    goldGain: 0
+  };
+  if (!result.missed && roll === dieSides) {
     critExtra = totalDamage;
     totalDamage *= 2;
+    result.critical = true;
   }
-  const questTitle = log.title || "Unknown Quest";
   const lines = [
-    `Quest Used: ${questTitle}`,
+    `Quest Used: ${result.questTitle}`,
     `Dice Roll (d${dieSides}): ${rollHistory.join(" → ")}`
   ];
-  if (missed) {
+  if (result.missed) {
     lines.push("Attack Missed!");
     lines.push(`Monster HP: ${m.hp}/${m.maxHp}`);
     addDungeonChatBlock(`${state.player.name} Attacks`, lines);
-    attackSound.play();
+    playAttackSound();
     state.dungeon.usedLogs.push(logId);
     save();
     renderDungeon();
-    return;
+    return result;
   }
   let abilityTriggered = false;
   if (m.ability === "heal5" && totalDamage > 0 && Math.random() < 0.05) {
@@ -1694,17 +2322,22 @@ function attackDungeon(logId) {
   } else {
     m.hp = Math.max(0, m.hp - totalDamage);
   }
+  result.totalDamage = totalDamage;
   lines.push(`Base Damage: ${baseValue}`);
   lines.push(`Multiplier Impact: ${multiplierDelta >= 0 ? "+" : ""}${multiplierDelta}`);
   lines.push(`Bonus Damage: ${bonusValue >= 0 ? "+" : ""}${bonusValue}`);
   lines.push(`Critical Hit: +${critExtra}`);
   lines.push(`Total Damage: ${totalDamage}`);
   if (abilityTriggered) {
-    lines.push(`${m.name} absorbs the blow and heals instead!`);
+    const text = `${m.name} absorbs the blow and heals instead!`;
+    lines.push(text);
+    result.abilityTriggered = true;
+    result.abilityText = text;
   }
   lines.push(`Monster HP: ${m.hp}/${m.maxHp}`);
+  result.remainingHp = m.hp;
   addDungeonChatBlock(`${state.player.name} Attacks`, lines);
-  attackSound.play();
+  playAttackSound();
   state.dungeon.usedLogs.push(logId);
   if (m.hp <= 0) {
     const base = m.baseHp || monsterBaseHP(m.tier);
@@ -1727,15 +2360,19 @@ function attackDungeon(logId) {
     if (state.dungeon.currentRun > state.dungeon.highestRun)
       state.dungeon.highestRun = state.dungeon.currentRun;
     state.dungeon.current = null;
+    result.monsterDefeated = true;
+    result.xpGain = xpGain;
+    result.goldGain = goldGain;
     save();
     render();
     setTimeout(() => {
       spawnMonster();
     }, 2000);
-    return;
+    return result;
   }
   save();
   renderDungeon();
+  return result;
 }
 function renderDungeon() {
   if (!state.dungeon) return;
@@ -1774,8 +2411,8 @@ function renderDungeon() {
     const btn = document.createElement("button");
     btn.id = "btn-enter-dungeon";
     btn.className = "px-4 py-2 rounded bg-sky-700 hover:bg-sky-600";
-    btn.textContent = "Enter Dungeon";
-    btn.onclick = () => confirmModal("Enter the dungeon?", spawnMonster);
+    btn.textContent = "Enter Codex";
+    btn.onclick = () => confirmModal("Enter the Codex?", spawnMonster);
     mDiv.appendChild(btn);
     return;
   }
@@ -1811,9 +2448,20 @@ function renderDungeon() {
   } else {
     quests.forEach(l => {
       const row = document.createElement("div");
-      row.className = "flex justify-between items-center text-sm mb-1";
-      row.innerHTML = `<span>${l.title} (${l.xp} XP)</span><button class="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600">Attack</button>`;
-      row.querySelector("button").onclick = () => attackDungeon(l.id);
+      row.className = "flex items-center justify-between text-sm mb-1 gap-2";
+      const label = document.createElement("span");
+      label.textContent = `${l.title} (${l.xp} XP)`;
+      row.appendChild(label);
+      const attackBtn = createHoldButtonElement("Attack", "attack");
+      attackBtn.style.width = "auto";
+      attackBtn.style.minWidth = "6.5rem";
+      attackBtn.style.flexShrink = "0";
+      attachHoldButton(attackBtn, {
+        variant: "attack",
+        onComplete: () => attackDungeon(l.id),
+        getDrops: result => createAttackDrops(result)
+      });
+      row.appendChild(attackBtn);
       qDiv.appendChild(row);
     });
   }
@@ -2101,11 +2749,6 @@ function show(view) {
     }
     if (state.player.xp < 0) state.player.xp = 0;
   }
-function confirmQuest(id) {
-  const q = state.quests.find(q => q.id === id);
-  if (!q) return;
-  confirmModal(`Complete <strong>${q.title}</strong>?`, () => completeQuest(id));
-}
 function completeQuest(id) {
   const idx = state.quests.findIndex(q => q.id === id);
   if (idx === -1) return;
@@ -2188,23 +2831,48 @@ function completeQuest(id) {
     state.streak.count++;
   }
   state.streak.last = completedAt;
+  const levelAfter = state.player.level;
+  const questResult = {
+    questId: q.id,
+    title: q.title,
+    xp: q.xp,
+    gold,
+    stats: statEntries,
+    skills: skillEntries,
+    logEntry,
+    completedAt,
+    levelBefore,
+    levelAfter,
+    levelUp: levelAfter > levelBefore
+  };
+  const statLines = statEntries
+    .filter(entry => typeof entry.points === "number" && entry.points !== 0)
+    .map(entry => `${entry.name} ${formatSigned(entry.points)}`);
+  const skillLines = skillEntries
+    .filter(entry => typeof entry.points === "number" && entry.points !== 0)
+    .map(entry => `${entry.name} ${formatSigned(entry.points)}`);
+  const codexLines = [
+    `${formatSigned(q.xp)} XP`,
+    `${formatSigned(gold)} Gold`,
+    ...statLines,
+    ...skillLines
+  ];
+  if (statLines.length === 0 && skillLines.length === 0) {
+    codexLines.push("No stat or skill changes");
+  }
+  addDungeonChatBlock(`${q.title} Completed`, codexLines, {
+    monsterKey: CODEX_KEY,
+    createdAt: completedAt
+  });
   save();
   render();
-  const levelAfter = state.player.level;
-  if (levelAfter > levelBefore) {
+  if (questResult.levelUp) {
     currentLvlSound = levelSounds[state.settings.levelSound || 0];
     currentLvlSound.play();
   } else {
     goldSound.play();
   }
-  let summary = `${q.xp >= 0 ? "+" + q.xp : q.xp} XP<br>+${gold} Gold`;
-  statEntries.forEach(s => {
-    summary += `<br>${s.name} ${s.points > 0 ? "+" : ""}${s.points}`;
-  });
-  skillEntries.forEach(s => {
-    summary += `<br>${s.name} ${s.points > 0 ? "+" : ""}${s.points}`;
-  });
-  infoModal(summary);
+  return questResult;
 }
 function deleteQuest(id) {
   const idx = state.quests.findIndex(q => q.id === id);
@@ -2527,10 +3195,10 @@ function startEdit(id) {
 }
   function render() {
     el("player-name-display").textContent = state.player.name;
-    el("level").textContent = state.player.level;
-    el("xp").textContent = state.player.xp;
-    el("prestige").textContent = state.player.prestige;
-    el("gold").textContent = state.player.gold;
+    el("level").textContent = formatNumber(state.player.level);
+    el("xp").textContent = formatNumber(state.player.xp);
+    el("prestige").textContent = formatNumber(state.player.prestige);
+    el("gold").textContent = formatNumber(state.player.gold);
     const baseTitle = getTitle(state.player.level);
     const custom = state.settings.titles[baseTitle];
     const displayTitle = custom?.name || baseTitle;
@@ -2559,7 +3227,18 @@ function startEdit(id) {
       }
     }
     if (changed) save();
-    el("next-xp").textContent = nextLevelXP();
+    const xpToNext = nextLevelXP();
+    const currentXp = Math.max(0, Math.round(state.player.xp));
+    el("next-xp").textContent = formatNumber(xpToNext);
+    const xpCurrentEl = el("xp-current");
+    if (xpCurrentEl) xpCurrentEl.textContent = formatNumber(currentXp);
+    const xpRemainingEl = el("xp-remaining");
+    if (xpRemainingEl) xpRemainingEl.textContent = formatNumber(Math.max(0, xpToNext - currentXp));
+    const xpProgressEl = el("xp-progress");
+    if (xpProgressEl) {
+      const percent = xpToNext ? Math.min(100, Math.max(0, (currentXp / xpToNext) * 100)) : 100;
+      xpProgressEl.style.width = `${percent}%`;
+    }
     const tier = getStreakTier(state.streak.count);
     if (tier && state.streak.count) {
       el("streak-display").innerHTML = `<img src="Sprites/${tier.icon}" class="inline w-5 h-5 mr-1"/>${tier.title} Streak (${state.streak.count})`;
@@ -2579,6 +3258,7 @@ function startEdit(id) {
     }
     el("level-sound").value = state.settings.levelSound;
     el("audio-volume").value = state.settings.volume;
+    attackVolume = Math.max(0, Math.min(1, state.settings.volume || 0));
     el("audio-section").classList.toggle("hidden", state.settings.audioCollapsed);
     el("audio-toggle-symbol").textContent = state.settings.audioCollapsed ? "+" : "-";
     const reset = getDailyResetParts();
@@ -3142,7 +3822,7 @@ el("audio-volume").oninput = e => {
   state.settings.volume = v;
   goldSound.volume = v;
   levelSounds.forEach(s => (s.volume = v));
-  attackSound.volume = v;
+  attackVolume = Math.max(0, Math.min(1, v));
   consumeSound.volume = v;
   drinkSound.volume = v;
   save();
