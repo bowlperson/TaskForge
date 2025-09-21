@@ -86,9 +86,19 @@
       outline: none;
       overflow: hidden;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
       -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
+      touch-action: none;
       transition: transform 0.15s ease;
+    }
+    .hold-btn *,
+    .ui-text {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
     }
     .hold-btn[data-variant="attack"] {
       --btn-bg: #dc2626;
@@ -636,7 +646,7 @@
         <button type="button" class="q-complete hold-btn flex-1" data-variant="quest" aria-label="Hold to complete quest">
           <span class="track" aria-hidden="true"></span>
           <span class="fill" aria-hidden="true"></span>
-          <span class="label-text">Completed</span>
+          <span class="label-text ui-text">Completed</span>
           <span class="pop-ring" aria-hidden="true"></span>
         </button>
         <button class="q-edit px-3 py-2 rounded bg-sky-700 hover:bg-sky-600 text-sm">Edit</button>
@@ -1600,7 +1610,8 @@ function spawnRewardDrops(rect, drops = []) {
   drops.forEach((drop, idx) => {
     if (!drop || !drop.text) return;
     const el = document.createElement("div");
-    el.className = `drop ${drop.cls || ""}`.trim();
+    const cls = ["drop", drop.cls, "ui-text"].filter(Boolean).join(" ");
+    el.className = cls;
     el.textContent = drop.text;
     const jitterX = Math.random() * 16 - 8;
     const jitterY = Math.random() * 10 - 5;
@@ -1746,6 +1757,10 @@ function attachHoldButton(btn, config = {}) {
     keyHolding = false;
     if (!completed) cancelHold();
   });
+
+  btn.addEventListener("contextmenu", e => {
+    e.preventDefault();
+  });
 }
 
 function createHoldButtonElement(label, variant = "quest") {
@@ -1756,7 +1771,7 @@ function createHoldButtonElement(label, variant = "quest") {
   btn.setAttribute("aria-label", `Hold to ${label.toLowerCase()}`);
   btn.innerHTML = `<span class="track" aria-hidden="true"></span>
     <span class="fill" aria-hidden="true"></span>
-    <span class="label-text"></span>
+    <span class="label-text ui-text"></span>
     <span class="pop-ring" aria-hidden="true"></span>`;
   const labelEl = btn.querySelector(".label-text");
   if (labelEl) labelEl.textContent = label;
